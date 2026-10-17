@@ -15,6 +15,7 @@ import { Vegetation, Grass } from './world/vegetation.js';
 import { Colliders } from './world/colliders.js';
 import { setNightGlow } from './world/buildings.js';
 import { Horse } from './horse/horse.js';
+import { loadHorseAssets } from './horse/horseModel.js';
 import { Tack } from './horse/tack.js';
 import { Player } from './player/player.js';
 import { FollowCamera } from './player/camera.js';
@@ -96,6 +97,10 @@ class Game {
     this.fx = new FX(this);
     this.tack = new Tack(this);
 
+    await this.mainMenu.setLoading('Pferde werden gesattelt …');
+    const highHorses = this.quality === 'high' || this.quality === 'medium';
+    this.lodDistance = highHorses ? 26 : 16;
+    await loadHorseAssets(highHorses ? ['', '-lo'] : ['-mid', '-lo'], (f) => this.mainMenu.setProgress?.(f));
     await this.mainMenu.setLoading('Die Ranch und das Städtchen werden gebaut …');
     this.ranch = new Ranch(this);
     this.town = new Town(this);

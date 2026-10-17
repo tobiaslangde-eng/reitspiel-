@@ -8,7 +8,7 @@ export default [
         window: 'readonly', document: 'readonly', navigator: 'readonly', screen: 'readonly', localStorage: 'readonly',
         performance: 'readonly', requestAnimationFrame: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly',
         setInterval: 'readonly', clearInterval: 'readonly', console: 'readonly', URL: 'readonly', confirm: 'readonly',
-        prompt: 'readonly', process: 'readonly', location: 'readonly',
+        prompt: 'readonly', process: 'readonly', location: 'readonly', TextDecoder: 'readonly', fetch: 'readonly', caches: 'readonly', self: 'readonly', Blob: 'readonly', matchMedia: 'readonly', Response: 'readonly',
       },
     },
     rules: {

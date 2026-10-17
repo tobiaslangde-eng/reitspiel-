@@ -93,9 +93,7 @@ export class Horse {
         r.bowGroup.add(bow);
       });
     }
-    // braided tail: slimmer
-    const slim = style !== 'offen' && this.data.tailBraid;
-    r.tailMeshes.forEach((m) => m.scale.set(slim ? 0.45 : 1, 1, slim ? 0.45 : 1));
+    r.setTailBraid(!!this.data.tailBraid);
   }
 
   get bond() { return this.data.bond; }
@@ -352,6 +350,8 @@ export class Horse {
   // ---------------------------------------------------------------------
   animate(dt) {
     const rig = this.rig;
+    const cam = this.game.camera;
+    if (cam) rig.setLOD(this.pos.distanceTo(cam.position) > (this.game.lodDistance || 24) ? 1 : 0);
     const sp = Math.abs(this.speed);
     const m = this.maneuver;
     // choose animation gait from speed
