@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mulberry32, noise2 } from '../core/noise.js';
-import { smoothstep } from '../core/utils.js';
+import { smoothstep, canvasTexture } from '../core/utils.js';
 import {
   heightAt, normalAt, forestFactor, desertFactor, mountainFactor, canyonFactor, riverInfo, roadDist,
   RANCH, TOWN, ARENA, PLAY_LIMIT, HALF,
@@ -45,38 +45,116 @@ function displace(geo, amt, seed) {
   return geo;
 }
 
-function colorGeo(geo, c) {
-  const col = new Float32Array(geo.attributes.position.count * 3);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const shade = 0.75 + Math.min(1, Math.max(0, pos.getY(i) / 8)) * 0.35;
-    col[i * 3] = c.r * shade; col[i * 3 + 1] = c.g * shade; col[i * 3 + 2] = c.b * shade;
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return geo;
+// ---------------------------------------------------------------------------
+// Card-based foliage: many small textured quads give soft, natural tree crowns.
+// ---------------------------------------------------------------------------
+let LEAF_TEX = null, NEEDLE_TEX = null;
+export function leafTexture() {
+  if (LEAF_TEX) return LEAF_TEX;
+  const rnd = mulberry32(91);
+  LEAF_TEX = canvasTexture(256, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    for (let i = 0; i < 170; i++) {
+      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * w * 0.42;
+      const x = w / 2 + Math.cos(a) * r, y = h / 2 + Math.sin(a) * r;
+      const v = 150 + rnd() * 105, gg = 170 + rnd() * 85;
+      g.fillStyle = `rgb(${v},${(v + gg) / 2},${v * 0.9})`;
+      g.save(); g.translate(x, y); g.rotate(rnd() * Math.PI * 2);
+      g.beginPath(); g.ellipse(0, 0, 9 + rnd() * 6, 4 + rnd() * 3, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(40,60,20,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-8, 0); g.lineTo(8, 0); g.stroke();
+      g.restore();
+    }
+  });
+  return LEAF_TEX;
+}
+export function needleTexture() {
+  if (NEEDLE_TEX) return NEEDLE_TEX;
+  const rnd = mulberry32(17);
+  NEEDLE_TEX = canvasTexture(128, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = 'rgb(120,100,70)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h * 0.95); g.stroke();
+    for (let y = 4; y < h * 0.95; y += 3) {
+      const len = (w * 0.45) * (1 - y / h * 0.6);
+      for (const s of [-1, 1]) {
+        const v = 170 + rnd() * 85;
+        g.strokeStyle = `rgba(${v},${v},${v * 0.95},0.95)`; g.lineWidth = 1.6;
+        g.beginPath(); g.moveTo(w / 2, y); g.lineTo(w / 2 + s * len * (0.7 + rnd() * 0.3), y + 8 + rnd() * 6); g.stroke();
+      }
+    }
+  });
+  return NEEDLE_TEX;
 }
 
-function pineFoliage() {
-  const parts = [];
-  for (let i = 0; i < 4; i++) {
-    const r = 2.4 - i * 0.5, h = 3.2 - i * 0.4;
-    const c = new THREE.ConeGeometry(r, h, 9, 2);
-    c.translate(0, 2.2 + i * 1.7 + h / 2, 0);
-    parts.push(displace(ni(c), 0.35, i + 3));
+// Builds a merged geometry of quads with outward (spherical) normals for soft shading.
+function cardCloud(cards) {
+  const pos = [], nor = [], uv = [], col = [], idx = [];
+  for (const c of cards) {
+    const base = pos.length / 3;
+    const { p, right, up, n, shade, normalFrom } = c;
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (const [u, v] of corners) {
+      const x = p.x + right.x * u + up.x * v, y = p.y + right.y * u + up.y * v, z = p.z + right.z * u + up.z * v;
+      pos.push(x, y, z);
+      const nn = n || new THREE.Vector3(x - normalFrom.x, y - normalFrom.y, z - normalFrom.z).normalize();
+      nor.push(nn.x, nn.y, nn.z);
+      uv.push((u + 1) / 2, (v + 1) / 2);
+      col.push(shade, shade, shade);
+    }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
-  return colorGeo(mergeGeometries(parts), new THREE.Color(1, 1, 1));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  return g;
 }
-function leafyFoliage(seed = 1) {
+
+export function pineFoliage(seed = 4) {
   const r = mulberry32(seed);
-  const parts = [];
-  for (let i = 0; i < 6; i++) {
-    const s = 1.4 + r() * 1.2;
-    const g = new THREE.IcosahedronGeometry(s, 1);
-    g.translate((r() - 0.5) * 3, 5 + r() * 2.6, (r() - 0.5) * 3);
-    parts.push(displace(ni(g), 0.5, seed * 10 + i));
+  const cards = [];
+  const H = 9.5, base = 1.6;
+  for (let i = 0; i < 70; i++) {
+    const t = i / 70;
+    const y = base + t * (H - base);
+    const rad = (1 - t) * 2.6 + 0.25;
+    const a = i * 2.39996 + r() * 0.4;
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const len = rad * (0.6 + r() * 0.3);
+    const center = new THREE.Vector3(dir.x * len * 0.55, y - len * 0.18, dir.z * len * 0.55);
+    // card lies along the branch, drooping slightly
+    const along = dir.clone().multiplyScalar(len * 0.6).add(new THREE.Vector3(0, -len * 0.18, 0));
+    const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(len * 0.32);
+    const shade = 0.55 + t * 0.4 + r() * 0.1;
+    cards.push({ p: center, right: side, up: along, normalFrom: new THREE.Vector3(0, y - 1.5, 0), shade });
+    cards.push({ p: center.clone().add(new THREE.Vector3(0, 0.08, 0)), right: new THREE.Vector3(0, len * 0.25, 0), up: along, normalFrom: new THREE.Vector3(0, y - 1.5, 0), shade: shade * 0.9 });
   }
-  return colorGeo(mergeGeometries(parts), new THREE.Color(1, 1, 1));
+  return cardCloud(cards);
 }
+
+export function leafyFoliage(seed = 1) {
+  const r = mulberry32(seed);
+  const cards = [];
+  const lobes = [];
+  for (let i = 0; i < 7; i++) lobes.push({ c: new THREE.Vector3((r() - 0.5) * 3.4, 5.2 + r() * 2.8, (r() - 0.5) * 3.4), rad: 1.5 + r() * 1.1 });
+  lobes.push({ c: new THREE.Vector3(0, 7.6, 0), rad: 1.8 });
+  const center = new THREE.Vector3(0, 6.2, 0);
+  for (const lb of lobes) {
+    for (let i = 0; i < 16; i++) {
+      const d = new THREE.Vector3(r() - 0.5, r() - 0.4, r() - 0.5).normalize();
+      const p = lb.c.clone().addScaledVector(d, lb.rad * (0.55 + r() * 0.5));
+      const size = 0.9 + r() * 0.6;
+      const right = new THREE.Vector3(r() - 0.5, (r() - 0.5) * 0.6, r() - 0.5).normalize().multiplyScalar(size);
+      const up = new THREE.Vector3().crossVectors(d, right).normalize().multiplyScalar(size);
+      const shade = 0.5 + Math.max(0, (p.y - 5) / 4) * 0.45 + r() * 0.1;
+      cards.push({ p, right, up, normalFrom: center, shade: Math.min(1, shade) });
+    }
+  }
+  return cardCloud(cards);
+}
+
 function trunkGeo(h = 4.5, r = 0.3) {
   const g = new THREE.CylinderGeometry(r * 0.6, r, h, 7);
   g.translate(0, h / 2, 0);
@@ -181,7 +259,7 @@ export class Vegetation {
       return Math.max(forestFactor(x, z) * 0.9, m * (h < 100 ? 0.55 : 0)) * (1 - desertFactor(x, z));
     });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3426, roughness: 1 });
-    const pineMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    const pineMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, map: needleTexture(), alphaTest: 0.45, side: THREE.DoubleSide });
     addWind(pineMat, this.uniforms, '0.012');
     this.pineTrunk = new CellBatch(trunkGeo(3, 0.3), trunkMat, pinePts);
     this.pine = new CellBatch(pineFoliage(), pineMat, pinePts);
@@ -204,7 +282,7 @@ export class Vegetation {
     });
     // Ranch shade trees
     for (const [x, z] of [[-30, -32], [38, -38], [-42, 30], [55, 40], [-20, 52]]) leafPts.push([x, heightAt(x, z), z]);
-    const leafMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+    const leafMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, map: leafTexture(), alphaTest: 0.45, side: THREE.DoubleSide });
     addWind(leafMat, this.uniforms, '0.03');
     this.leafTrunk = new CellBatch(branchyTrunk(), trunkMat, leafPts);
     this.leaf = new CellBatch(leafyFoliage(7), leafMat, leafPts);

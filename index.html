@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Rye&family=Alegreya+Sans:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Rye&family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800;1,900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
@@ -26,20 +26,26 @@
   <div id="rotate-hint"><div>📱↻</div><p>Dreh dein Handy ins <b>Querformat</b>,<br>dann geht der Ritt los!</p></div>
 
   <div id="hud" class="hidden">
-    <div id="hud-top-left" class="hud-box">
-      <div id="hud-time">☀️ Tag 1 · 08:00</div>
-      <div id="hud-season">🌸 Frühling · Sonnig</div>
-      <div id="hud-money">$600</div>
+    <div id="topbar">
+      <div id="lvl-badge"><span id="lvl-num">1</span></div>
+      <button id="btn-goals" class="tab blue">ZIELE</button>
+      <div class="topbar-spacer"></div>
+      <div id="coins"><i class="coin"></i><span id="hud-money">600</span></div>
+      <button id="btn-market" class="tab orange">MARKT</button>
     </div>
+    <div id="hud-info"><span id="hud-time">Tag 1 · 08:00</span><span id="hud-season">Frühling · Sonnig</span></div>
     <div id="hud-compass"><div id="compass-strip"></div><div class="compass-needle"></div></div>
     <canvas id="minimap" width="200" height="200"></canvas>
-    <div id="hud-horse" class="hud-box">
-      <div id="hud-horse-name">Cody</div>
-      <div id="hud-bond"></div>
-      <div class="bar"><div id="stamina-fill"></div><span>Ausdauer</span></div>
-      <div id="hud-gait">Stehen</div>
+    <div id="hud-horse">
+      <div class="star-badge"><span id="hud-bond-lvl">2</span></div>
+      <div class="hh-text">
+        <div id="hud-horse-name">Cody</div>
+        <div id="hud-bond"></div>
+        <div class="bar"><div id="stamina-fill"></div><span>AUSDAUER</span></div>
+        <div id="hud-gait">Stehen</div>
+      </div>
     </div>
-    <div id="hud-quest" class="hud-box hidden"></div>
+    <div id="hud-quest" class="hidden"></div>
     <div id="hud-event" class="hidden"></div>
     <div id="prompt" class="hidden"></div>
     <div id="toasts"></div>
@@ -53,9 +59,10 @@
 
   <div id="panel" class="hidden">
     <div id="panel-inner">
-      <div id="panel-head"><h2 id="panel-title"></h2><button id="panel-close" title="Schließen (Esc)">✕</button></div>
+      <div id="panel-head"><h2 id="panel-title"></h2><div id="panel-coins"><i class="coin"></i><span id="panel-money"></span></div></div>
       <div id="panel-tabs"></div>
       <div id="panel-body"></div>
+      <div id="panel-foot"><button id="panel-home" class="tab dark" title="Schließen">⌂</button><button id="panel-close" class="tab orange" title="Zurück (Esc)">ZURÜCK</button></div>
     </div>
   </div>
 
@@ -80,33 +87,40 @@
   </div>
 
   <div id="menu" class="">
+    <canvas id="menu-canvas"></canvas>
+    <div id="menu-shade"></div>
     <div id="menu-inner">
-      <h1>Silver Spur Ranch</h1>
-      <div class="subtitle">Ein Western-Reitabenteuer</div>
+      <div id="logo">
+        <div class="logo-star">★</div>
+        <div class="logo-top">SILVER SPUR</div>
+        <div class="logo-main">RANCH</div>
+        <div class="logo-sub">WESTERN · REITEN · RODEO</div>
+      </div>
       <div id="menu-main">
-        <button id="btn-continue" class="big hidden">▶ Weiterspielen</button>
-        <button id="btn-new" class="big">✦ Neues Spiel</button>
+        <button id="btn-continue" class="big hidden">WEITERSPIELEN</button>
+        <button id="btn-new" class="big">NEUES SPIEL</button>
         <div class="menu-row">
-          <label>Grafik
+          <label>GRAFIK
             <select id="opt-quality">
               <option value="auto">Automatisch</option><option value="mobile">Handy / Tablet</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option>
             </select>
           </label>
         </div>
-        <button id="btn-install" class="hidden">📲 Als App installieren</button>
-        <div id="ios-hint" class="hidden">📲 Als App installieren: <b>Teilen</b> ⎋ → <b>Zum Home-Bildschirm</b></div>
+        <button id="btn-install" class="hidden">📲 ALS APP INSTALLIEREN</button>
+        <div id="ios-hint" class="hidden">📲 Als App installieren: <b>Teilen</b> → <b>Zum Home-Bildschirm</b></div>
       </div>
       <div id="menu-new" class="hidden">
-        <label class="field">Name der Reiterin <input id="new-name" value="Tessa" maxlength="20" /></label>
-        <div class="field-title">Wähle dein erstes Pferd</div>
+        <div class="new-title">WÄHLE DEIN PFERD</div>
         <div id="starter-cards"></div>
-        <label class="field">Name deines Pferdes <input id="new-horse-name" maxlength="20" /></label>
-        <button id="btn-start" class="big">🐎 Los geht's!</button>
-        <button id="btn-back">Zurück</button>
+        <div class="new-fields">
+          <label class="field">REITERIN <input id="new-name" value="Tessa" maxlength="20" /></label>
+          <label class="field">PFERD <input id="new-horse-name" maxlength="20" /></label>
+        </div>
+        <div class="new-actions"><button id="btn-back" class="tab dark">ZURÜCK</button><button id="btn-start" class="big">LOS GEHT'S</button></div>
       </div>
-      <div id="loading" class="hidden"><div class="spinner">🐴</div><div id="loading-text">Die Prärie wird erschaffen …</div></div>
-      <div class="credits">Alle Grafiken, Musik und Geräusche werden live im Browser erzeugt.</div>
+      <div id="loading" class="hidden"><div class="spinner"></div><div id="loading-text">Die Prärie wird erschaffen …</div><div class="load-bar"><i id="load-fill"></i></div></div>
     </div>
+    <div class="credits">Grafik, Musik und Geräusche entstehen live im Browser</div>
   </div>
 
   <div id="fade"></div>

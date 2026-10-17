@@ -1,4 +1,5 @@
-import { STARTER_HORSES, newGameState, loadGame, hasSave } from '../game/state.js';
+import { STARTER_HORSES, newGameState, loadGame, hasSave, starterHorse } from '../game/state.js';
+import { loadHorseAssets } from '../horse/horseModel.js';
 import { BREEDS, COATS, PERSONALITIES } from '../horse/breeds.js';
 import { esc } from './ui.js';
 import { isTouchDevice } from './touch.js';
@@ -28,6 +29,7 @@ export class MainMenu {
     };
     const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone;
     if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone) $('ios-hint').classList.remove('hidden');
+    this.initShowcase(saved);
 
     $('btn-continue').onclick = () => {
       const s = loadGame();
@@ -47,10 +49,32 @@ export class MainMenu {
     $('btn-start').onclick = () => {
       const name = $('new-name').value.trim() || 'Tessa';
       const hname = $('new-horse-name').value.trim() || STARTER_HORSES[this.starter].name;
-      const s = newGameState(name, this.starter, hname);
+      const s = newGameState(name, this.starter, hname, this.previewHorse);
       s.settings.quality = q.value;
       this.go(s);
     };
+  }
+
+  // 3D backdrop with the selected (or saved active) horse; failures just leave the gradient
+  async initShowcase(saved) {
+    try {
+      await loadHorseAssets(isTouchDevice() ? ['-mid', '-lo'] : ['', '-lo']);
+      if (this.started) return;
+      const { Showcase } = await import('./showcase.js');
+      if (this.started) return;
+      this.showcase = new Showcase($('menu-canvas'));
+      const active = saved && saved.horses.find((h) => h.id === saved.activeHorse);
+      if (active) this.showcase.setHorse(active);
+      else this.preview(this.starter);
+      $('menu').classList.add('has-3d');
+    } catch (e) {
+      console.warn('showcase disabled', e);
+    }
+  }
+
+  preview(i) {
+    this.previewHorse = starterHorse(i);
+    if (this.showcase) this.showcase.setHorse(this.previewHorse);
   }
 
   renderCards() {
@@ -59,17 +83,30 @@ export class MainMenu {
     STARTER_HORSES.forEach((st, i) => {
       const b = BREEDS[st.breed];
       const c = document.createElement('div');
-      c.className = 'card' + (i === this.starter ? ' sel' : '');
+      c.className = 'card starter' + (i === this.starter ? ' sel' : '');
       const col = COATS[st.coat].base.map((v) => Math.round(v * 255)).join(',');
-      c.innerHTML = `<h3>${esc(st.name)}</h3>
-        <div><span class="swatch" style="background:rgb(${col})"></span>${esc(b.name)} · ${COATS[st.coat].name}</div>
-        <div class="desc">${esc(b.desc)}</div>
-        <div class="muted">${st.gender} · ${PERSONALITIES[st.personality].icon} ${PERSONALITIES[st.personality].name}</div>
-        <div class="muted">Tempo ${b.stats.speed} · Ausdauer ${b.stats.stamina} · Wendigkeit ${b.stats.agility}</div>`;
-      c.onclick = () => { this.starter = i; $('new-horse-name').value = st.name; this.renderCards(); };
+      const grade = Math.max(1, Math.min(5, Math.round((b.stats.speed + b.stats.stamina + b.stats.agility) / 6)));
+      const p = PERSONALITIES[st.personality];
+      c.innerHTML = `<div class="star-badge" style="width:48px;height:48px"><span style="font-size:20px">${grade}</span></div>
+        <h3>${esc(st.name)}</h3>
+        <div class="muted"><span class="swatch" style="background:rgb(${col})"></span>${esc(b.name)} · ${COATS[st.coat].name}</div>
+        <div class="muted">${st.gender} · ${p.icon} ${p.name}</div>
+        <div class="statgrid"><div><b>${b.stats.speed * 10}</b>TEMPO</div><div><b>${b.stats.stamina * 10}</b>AUSDAUER</div><div><b>${b.stats.agility * 10}</b>WENDIGK.</div></div>`;
+      c.onclick = () => {
+        if (this.starter !== i) this.preview(i);
+        this.starter = i;
+        $('new-horse-name').value = st.name;
+        this.renderCards();
+      };
       box.appendChild(c);
     });
     if (!$('new-horse-name').value) $('new-horse-name').value = STARTER_HORSES[this.starter].name;
+    if (!this.previewHorse) this.preview(this.starter);
+  }
+
+  setProgress(f) {
+    const el = $('load-fill');
+    if (el) el.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%';
   }
 
   async go(state) {
@@ -85,6 +122,9 @@ export class MainMenu {
     $('menu-main').classList.add('hidden');
     $('menu-new').classList.add('hidden');
     $('loading').classList.remove('hidden');
+    this.started = true;
+    if (this.showcase) { this.showcase.dispose(); this.showcase = null; }
+    $('menu').classList.remove('has-3d');
     try {
       await this.game.start(state);
     } catch (e) {
@@ -95,6 +135,9 @@ export class MainMenu {
 
   async setLoading(text) {
     $('loading-text').textContent = text;
+    // seven loading steps in Game.start; horse assets report finer progress via setProgress
+    this.step = (this.step || 0) + 1;
+    this.setProgress(Math.min(0.95, this.step / 7));
     await new Promise((r) => setTimeout(r, 30));
   }
 

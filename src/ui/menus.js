@@ -54,8 +54,10 @@ export class Menus {
       c.style.cursor = 'pointer';
       const col = COATS[d.coat].base.map((v) => Math.round(v * 255)).join(',');
       const bl = bondLevel(d.bond);
-      c.innerHTML = `<h3><span class="swatch" style="background:rgb(${col})"></span>${esc(d.name)} ${d.id === s.activeHorse ? '<span class="tag gold">aktiv</span>' : ''} ${(d.growth ?? 1) < 1 ? '<span class="tag turq">Fohlen</span>' : ''}</h3>
-        <div class="muted">${esc(breedName(d))} · ${COATS[d.coat].name} · ${'❤'.repeat(bl.lvl)}</div>`;
+      c.style.paddingLeft = '64px';
+      c.innerHTML = `<div class="star-badge" style="position:absolute;left:6px;top:8px;width:50px;height:50px"><span style="font-size:20px">${bl.lvl}</span></div>
+        <h3>${esc(d.name)} ${d.id === s.activeHorse ? '<span class="tag gold">aktiv</span>' : ''} ${(d.growth ?? 1) < 1 ? '<span class="tag turq">Fohlen</span>' : ''}</h3>
+        <div class="muted"><span class="swatch" style="background:rgb(${col})"></span>${esc(breedName(d))} · ${COATS[d.coat].name}</div>`;
       c.onclick = () => { this.selHorse = d.id; refresh(); };
       list.appendChild(c);
     }
@@ -225,6 +227,25 @@ export class Menus {
     el.querySelectorAll('[data-h]').forEach((b) => (b.onclick = () => { s.hour = +b.dataset.h; g.envT = 0; }));
     el.querySelector('#save').onclick = () => g.save();
     el.querySelector('#reset').onclick = () => { if (confirm('Wirklich ein neues Spiel starten? Der aktuelle Spielstand wird gelöscht.')) { deleteSave(); location.reload(); } };
+  }
+
+  // -------------------------------------------------------------- market (available everywhere)
+  openMarket() {
+    const g = this.game;
+    const town = g.town;
+    const grid = (el, refresh, pred) => {
+      el.innerHTML = '<p class="muted">Bestellungen werden direkt auf deine Ranch geliefert.</p><div class="grid"></div>';
+      const box = el.querySelector('.grid');
+      for (const it of Object.values(ITEMS).filter((i) => pred(i) && !i.unique && i.price > 0)) box.appendChild(town.itemCard(it, refresh));
+    };
+    g.ui.openPanel('Markt', [
+      { id: 'horses', label: 'Pferde', render: (el, r) => town.renderBuy(el, r) },
+      { id: 'saddles', label: 'Sättel', render: (el, r) => grid(el, r, (i) => i.type === 'saddle' || i.type === 'pad') },
+      { id: 'tack', label: 'Zaumzeug & Co.', render: (el, r) => grid(el, r, (i) => ['bridle', 'breast', 'wraps', 'mask', 'ribbon'].includes(i.type)) },
+      { id: 'fashion', label: 'Mode', render: (el, r) => grid(el, r, (i) => i.type === 'outfit' && i.slot !== 'hair') },
+      { id: 'store', label: 'Futter & Deko', render: (el, r) => grid(el, r, (i) => i.type === 'feed' || i.type === 'decor') },
+      { id: 'sell', label: 'Verkaufen', render: (el, r) => town.renderSell(el, r) },
+    ]);
   }
 
   // -------------------------------------------------------------- map

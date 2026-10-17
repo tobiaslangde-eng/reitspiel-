@@ -1,4 +1,3 @@
-import { formatMoney } from '../core/utils.js';
 import { bondLevel } from '../horse/breeds.js';
 import { SEASON_NAMES } from '../world/sky.js';
 import { heightAt, colorAt, WORLD_SIZE, HALF, ROADS } from '../world/terrain.js';
@@ -15,6 +14,9 @@ export class UI {
     this.dialogOpen = false;
     this.panelOnClose = null;
     $('panel-close').onclick = () => this.closePanel();
+    $('panel-home').onclick = () => this.closePanel();
+    $('btn-goals').onclick = () => this.game.menus.openMain('quests');
+    $('btn-market').onclick = () => this.game.menus.openMarket();
     $('panel').addEventListener('mousedown', (e) => { if (e.target.id === 'panel') this.closePanel(); });
     const strip = $('compass-strip');
     const dirs = ['N', '·', 'NO', '·', 'O', '·', 'SO', '·', 'S', '·', 'SW', '·', 'W', '·', 'NW', '·'];
@@ -85,6 +87,7 @@ export class UI {
     const select = (tab) => {
       [...tabBar.children].forEach((b) => b.classList.toggle('active', b.dataset.id === tab.id));
       body.innerHTML = '';
+      $('panel-money').textContent = Math.round(this.game.state?.money || 0).toLocaleString('de-DE');
       this.currentTab = tab;
       tab.render(body, () => select(tab));
       body.scrollTop = 0;
@@ -101,6 +104,7 @@ export class UI {
     this.panelOnClose = onClose || null;
     select(list[0]);
     $('panel').classList.remove('hidden');
+    $('panel-money').textContent = Math.round(this.game.state?.money || 0).toLocaleString('de-DE');
     this.modalOpen = true;
     this.panelOpen = true;
     if (document.pointerLockElement) document.exitPointerLock();
@@ -108,6 +112,7 @@ export class UI {
 
   refreshPanel() {
     if (!this.panelOpen || !this.currentTab) return;
+    $('panel-money').textContent = Math.round(this.game.state.money).toLocaleString('de-DE');
     const body = $('panel-body');
     const st = body.scrollTop;
     body.innerHTML = '';
@@ -172,6 +177,12 @@ export class UI {
   }
 
   // ------------------------------------------------------------ HUD
+  ranchLevel() {
+    const s = this.game.state;
+    const pts = Object.keys(s.achievements).length * 2 + s.quests.done + (s.stats.wins || 0) * 3 + s.discovered.length + Object.keys(s.ranch.buildings).length;
+    return 1 + Math.floor(pts / 5);
+  }
+
   updateHUD() {
     const g = this.game, s = g.state;
     const hh = Math.floor(s.hour), mm = Math.floor((s.hour - hh) * 60);
@@ -179,13 +190,15 @@ export class UI {
     $('hud-time').textContent = `${timeIcon} Tag ${s.day} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
     const w = g.weather.info;
     $('hud-season').textContent = `${SEASON_ICON[g.season]} ${SEASON_NAMES[g.season]} · ${w.icon} ${w.name}`;
-    $('hud-money').textContent = formatMoney(s.money);
+    $('hud-money').textContent = Math.round(s.money).toLocaleString('de-DE');
+    $('lvl-num').textContent = this.ranchLevel();
     const p = g.player;
     const h = p.mode === 'ride' ? p.horse : g.activeHorseEntity();
     if (h) {
-      $('hud-horse-name').textContent = `🐴 ${h.data.name}`;
+      $('hud-horse-name').textContent = h.data.name;
       const bl = bondLevel(h.data.bond);
-      $('hud-bond').textContent = '❤'.repeat(bl.lvl) + '♡'.repeat(5 - bl.lvl) + '  ' + bl.name;
+      $('hud-bond-lvl').textContent = bl.lvl;
+      $('hud-bond').textContent = `Bindung: ${bl.name}`;
       const frac = h.stamina / h.maxStamina();
       const f = $('stamina-fill');
       f.style.width = (frac * 100).toFixed(1) + '%';

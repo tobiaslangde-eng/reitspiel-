@@ -9,10 +9,16 @@ export const STARTER_HORSES = [
   { breed: 'mustang', coat: 'falbe', name: 'Spirit', gender: 'Hengst', personality: 'aengstlich' },
 ];
 
-export function newGameState(playerName, starterIdx = 0, horseName) {
+export function starterHorse(starterIdx = 0, horseName) {
   const st = STARTER_HORSES[starterIdx] || STARTER_HORSES[0];
   const h = randomHorse(st.breed, { coat: st.coat, gender: st.gender, personality: st.personality, name: horseName || st.name, bond: 25, age: 6 });
   h.tack = { saddle: 'saddle_tessa', bridle: 'bridle_tessa', pad: 'pad_tessa', breast: 'breast_tessa', wraps: null, mask: null };
+  return h;
+}
+
+export function newGameState(playerName, starterIdx = 0, horseName, horse = null) {
+  const h = horse || starterHorse(starterIdx, horseName);
+  if (horseName) h.name = horseName;
   return {
     version: 1,
     playerName: playerName || 'Tessa',

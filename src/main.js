@@ -111,7 +111,7 @@ class Game {
     await this.mainMenu.setLoading('Pferde werden gesattelt …');
     const highHorses = this.quality === 'high' || this.quality === 'medium';
     this.lodDistance = highHorses ? 26 : 16;
-    await loadHorseAssets(highHorses ? ['', '-lo'] : ['-mid', '-lo'], (f) => this.mainMenu.setProgress?.(f));
+    await loadHorseAssets(highHorses ? ['', '-lo'] : ['-mid', '-lo'], (f) => this.mainMenu.setProgress?.((4 + f) / 7));
     await this.mainMenu.setLoading('Die Ranch und das Städtchen werden gebaut …');
     this.ranch = new Ranch(this);
     this.town = new Town(this);

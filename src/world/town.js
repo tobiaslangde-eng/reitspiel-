@@ -351,11 +351,12 @@ export class Town {
     const br = BREEDS[h.breed];
     const coat = COATS[h.coat];
     const col = coat.base.map((v) => Math.round(v * 255)).join(',');
-    const pip = (v) => `<div class="pips"><i style="width:${v * 10}%"></i></div>`;
-    return `<h3>${esc(h.name)} <span class="muted">${h.gender === 'Stute' ? '♀' : '♂'} ${h.age} J.</span></h3>
-      <div><span class="swatch" style="background:rgb(${col})"></span>${esc(breedName(h))} · ${coat.name}</div>
-      <div class="muted">${PERSONALITIES[h.personality].icon} ${PERSONALITIES[h.personality].name}</div>
-      <div class="stat">Tempo ${pip(h.stats.speed)}</div><div class="stat">Ausdauer ${pip(h.stats.stamina)}</div><div class="stat">Wendigkeit ${pip(h.stats.agility)}</div>
+    const grade = Math.max(1, Math.min(5, Math.round((h.stats.speed + h.stats.stamina + h.stats.agility) / 6)));
+    return `<div class="star-badge" style="position:absolute;right:8px;top:8px;width:48px;height:48px"><span style="font-size:20px">${grade}</span></div>
+      <div class="muted" style="font:700 italic 13px var(--cond);text-transform:uppercase">${h.gender === 'Stute' ? 'Stute' : h.gender} · ${h.age} J.</div>
+      <h3 style="padding-right:50px">${esc(h.name)}</h3>
+      <div class="muted"><span class="swatch" style="background:rgb(${col})"></span>${esc(breedName(h))} · ${coat.name}</div>
+      <div class="statgrid"><div><b>${h.stats.speed * 10}</b>TEMPO</div><div><b>${h.stats.stamina * 10}</b>AUSDAUER</div><div><b>${h.stats.agility * 10}</b>WENDIGK.</div><div><b>${PERSONALITIES[h.personality].icon}</b>${PERSONALITIES[h.personality].name.toUpperCase()}</div></div>
       <div class="desc">${esc(br.desc)}</div>${extra}`;
   }
 

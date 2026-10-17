@@ -53,15 +53,17 @@ function parseHorse(buf, P) {
 export async function loadHorseAssets(levels = LEVELS, onProgress) {
   LEVELS = levels;
   let done = 0;
-  const total = ARCHETYPE_KEYS.length * levels.length;
-  await Promise.all(ARCHETYPE_KEYS.flatMap((k) => levels.map(async (lv) => {
+  const todo = ARCHETYPE_KEYS.flatMap((k) => levels.map((lv) => [k, lv])).filter(([k, lv]) => !ASSETS[k + lv]);
+  const total = todo.length || 1;
+  if (!todo.length && onProgress) onProgress(1);
+  await Promise.all(todo.map(async ([k, lv]) => {
     const res = await fetch(`assets/horses/${k}${lv}.bin`);
     if (!res.ok) throw new Error(`Pferdemodell ${k}${lv} fehlt`);
     const buf = await res.arrayBuffer();
     ASSETS[k + lv] = parseHorse(buf, ARCHETYPES[k]);
     done++;
     if (onProgress) onProgress(done / total);
-  })));
+  }));
 }
 
 // ---------------------------------------------------------------------------
