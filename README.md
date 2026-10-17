@@ -7,6 +7,11 @@ baust die Ranch aus, sammelst Pferde aller Rassen, pflegst sie und trittst bei R
 Alle Grafiken, die Countrymusik und die Geräusche entstehen live im Browser. Es gibt keine
 Bild- oder Sounddateien und auch keinen Build-Schritt.
 
+| | |
+|---|---|
+| ![Galopp über die Prärie](docs/galopp.png) | ![Sattel „Tessa“](docs/tessa-sattel.png) |
+| ![Winter auf der Ranch](docs/winter.png) | ![Lagerfeuer bei Nacht](docs/lagerfeuer.png) |
+
 ## Starten
 
 ```bash
