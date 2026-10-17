@@ -1,0 +1,11 @@
+{
+  "name": "silver-spur-ranch",
+  "version": "1.0.0",
+  "description": "3D-Western-Reitspiel im Browser (Three.js)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "eslint src"
+  }
+}

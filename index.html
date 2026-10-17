@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Silver Spur Ranch – Western-Reitspiel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rye&family=Alegreya+Sans:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="hud-top-left" class="hud-box">
+      <div id="hud-time">☀️ Tag 1 · 08:00</div>
+      <div id="hud-season">🌸 Frühling · Sonnig</div>
+      <div id="hud-money">$600</div>
+    </div>
+    <div id="hud-compass"><div id="compass-strip"></div><div class="compass-needle"></div></div>
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="hud-horse" class="hud-box">
+      <div id="hud-horse-name">Cody</div>
+      <div id="hud-bond"></div>
+      <div class="bar"><div id="stamina-fill"></div><span>Ausdauer</span></div>
+      <div id="hud-gait">Stehen</div>
+    </div>
+    <div id="hud-quest" class="hud-box hidden"></div>
+    <div id="hud-event" class="hidden"></div>
+    <div id="prompt" class="hidden"></div>
+    <div id="toasts"></div>
+    <div id="banner" class="hidden"></div>
+    <div id="hud-keys">
+      <span><b>W/A/S/D</b> Reiten</span><span><b>1-3</b> Gangart</span><span><b>Shift</b> Renngalopp</span><span><b>Leertaste</b> Springen</span>
+      <span><b>X</b> Sliding Stop</span><span><b>C</b> Spin</span><span><b>E</b> Auf-/Absteigen</span><span><b>H</b> Pfeifen</span>
+      <span><b>F</b> Lasso</span><span><b>G</b> Pflege</span><span><b>Tab</b> Menü</span><span><b>M</b> Karte</span><span><b>P</b> Foto</span><span><b>F1</b> Hilfe</span>
+    </div>
+  </div>
+
+  <div id="panel" class="hidden">
+    <div id="panel-inner">
+      <div id="panel-head"><h2 id="panel-title"></h2><button id="panel-close" title="Schließen (Esc)">✕</button></div>
+      <div id="panel-tabs"></div>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+
+  <div id="dialog" class="hidden">
+    <div id="dialog-portrait"></div>
+    <div id="dialog-content"><div id="dialog-name"></div><div id="dialog-text"></div><div id="dialog-options"></div></div>
+  </div>
+
+  <div id="photo-ui" class="hidden">
+    <div class="photo-frame"></div>
+    <div id="photo-bar">
+      <span>📷 Fotomodus — Maus: Blick · WASD: Bewegen · Q/E: Höhe</span>
+      <select id="photo-filter">
+        <option value="none">Kein Filter</option><option value="warm">Goldene Stunde</option><option value="sepia">Sepia (Wildwest)</option>
+        <option value="bw">Schwarz-Weiß</option><option value="vivid">Lebendig</option><option value="dream">Verträumt</option>
+      </select>
+      <label><input type="checkbox" id="photo-hide-rider" /> Reiterin ausblenden</label>
+      <label>Uhrzeit <input type="range" id="photo-time" min="0" max="24" step="0.25" /></label>
+      <button id="photo-shoot">📸 Foto speichern</button>
+      <button id="photo-exit">Zurück (P)</button>
+    </div>
+  </div>
+
+  <div id="menu" class="">
+    <div id="menu-inner">
+      <h1>Silver Spur Ranch</h1>
+      <div class="subtitle">Ein Western-Reitabenteuer</div>
+      <div id="menu-main">
+        <button id="btn-continue" class="big hidden">▶ Weiterspielen</button>
+        <button id="btn-new" class="big">✦ Neues Spiel</button>
+        <div class="menu-row">
+          <label>Grafik
+            <select id="opt-quality">
+              <option value="auto">Automatisch</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="menu-new" class="hidden">
+        <label class="field">Name der Reiterin <input id="new-name" value="Tessa" maxlength="20" /></label>
+        <div class="field-title">Wähle dein erstes Pferd</div>
+        <div id="starter-cards"></div>
+        <label class="field">Name deines Pferdes <input id="new-horse-name" maxlength="20" /></label>
+        <button id="btn-start" class="big">🐎 Los geht's!</button>
+        <button id="btn-back">Zurück</button>
+      </div>
+      <div id="loading" class="hidden"><div class="spinner">🐴</div><div id="loading-text">Die Prärie wird erschaffen …</div></div>
+      <div class="credits">Alle Grafiken, Musik und Geräusche werden live im Browser erzeugt.</div>
+    </div>
+  </div>
+
+  <div id="fade"></div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
