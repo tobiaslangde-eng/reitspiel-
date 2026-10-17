@@ -47,6 +47,8 @@ export class UI {
   }
 
   prompt(text) {
+    if (text === this.lastPrompt) return;
+    this.lastPrompt = text;
     const p = $('prompt');
     if (!text) { p.classList.add('hidden'); return; }
     p.innerHTML = text;
@@ -54,6 +56,8 @@ export class UI {
   }
 
   eventHud(html) {
+    if (html === this.lastEvent) return;
+    this.lastEvent = html;
     const e = $('hud-event');
     if (!html) { e.classList.add('hidden'); return; }
     e.innerHTML = html;
@@ -61,6 +65,8 @@ export class UI {
   }
 
   questHud(html) {
+    if (html === this.lastQuest) return;
+    this.lastQuest = html;
     const q = $('hud-quest');
     if (!html) { q.classList.add('hidden'); return; }
     q.innerHTML = html;

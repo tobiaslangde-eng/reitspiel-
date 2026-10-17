@@ -184,7 +184,7 @@ export class Horse {
       return;
     }
     const agility = this.data.stats.agility;
-    this.vy = 4.3 + agility * 0.09;
+    this.vy = 5.4 + agility * 0.1;
     this.airborne = true;
     this.stamina -= 7;
     this.jumpT = 0;

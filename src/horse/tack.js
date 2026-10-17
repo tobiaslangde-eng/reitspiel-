@@ -409,9 +409,9 @@ export class Tack {
     if (item.plate) {
       // engraved name plate on the browband
       const p = hs(0.1);
-      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.032), new THREE.MeshStandardMaterial({ map: nameTexture(item.plate, true), metalness: 0.9, roughness: 0.25, transparent: true }));
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.042), new THREE.MeshStandardMaterial({ map: nameTexture(item.plate, true), metalness: 0.9, roughness: 0.25, transparent: true }));
       plate.position.set(0, p.y, p.cz - p.rz - 0.012);
-      plate.rotation.set(0, Math.PI, 0); // face side of the head is -z
+      plate.rotation.set(0, Math.PI, Math.PI); // face side is -z; head axis points toward the muzzle
       g.add(plate);
     }
     g.userData.bits = bits;
