@@ -88,8 +88,8 @@ button.btn.small { padding: 4px 9px; font-size: 13px; }
 .card .swatch { display: inline-block; width: 18px; height: 18px; border-radius: 4px; border: 1px solid #0006; vertical-align: middle; margin-right: 4px; }
 .card .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .stat { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.stat .pips { flex: 1; height: 8px; background: rgba(0,0,0,0.15); border-radius: 4px; overflow: hidden; }
-.stat .pips i { display: block; height: 100%; background: linear-gradient(90deg, var(--turq), #7fe0d6); }
+.pips { flex: 1; height: 8px; background: rgba(0,0,0,0.15); border-radius: 4px; overflow: hidden; }
+.pips i { display: block; height: 100%; background: linear-gradient(90deg, var(--turq), #7fe0d6); }
 .need { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 2px 0; }
 .need .pips i { background: linear-gradient(90deg, #d9a520, #f3d266); }
 .tag { display: inline-block; background: var(--wood2); color: #fff3d8; border-radius: 10px; padding: 1px 8px; font-size: 12px; margin-right: 4px; }
@@ -155,3 +155,11 @@ canvas.filter-sepia { filter: sepia(0.85) contrast(1.1); }
 canvas.filter-bw { filter: grayscale(1) contrast(1.15); }
 canvas.filter-vivid { filter: saturate(1.6) contrast(1.1); }
 canvas.filter-dream { filter: brightness(1.1) saturate(1.2) blur(0.6px); }
+
+@media (max-width: 900px) {
+  #minimap { width: 130px; height: 130px; }
+  #hud-compass { width: 240px; }
+  #hud-keys { display: none; }
+  #hud-quest { top: 160px; width: 200px; font-size: 12px; }
+  #hud-top-left { font-size: 13px; min-width: 150px; }
+}

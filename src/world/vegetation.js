@@ -114,6 +114,36 @@ function bushGeo() {
   return displace(mergeGeometries(parts), 0.15, 5);
 }
 
+// Splits a large instanced set into spatial cells so frustum and shadow culling work per cell.
+const CELL = 180;
+class CellBatch {
+  constructor(geo, mat, pts) {
+    this.cells = new Map();
+    this.map = [];
+    pts.forEach((p, i) => {
+      const k = Math.floor(p[0] / CELL) + ',' + Math.floor(p[2] / CELL);
+      let c = this.cells.get(k);
+      if (!c) { c = { n: 0 }; this.cells.set(k, c); }
+      this.map.push([c, c.n++]);
+    });
+    this.meshes = [];
+    for (const c of this.cells.values()) {
+      c.mesh = new THREE.InstancedMesh(geo, mat, c.n);
+      this.meshes.push(c.mesh);
+    }
+    const self = this;
+    this.instanceColor = { set needsUpdate(v) { for (const m of self.meshes) if (m.instanceColor) m.instanceColor.needsUpdate = v; } };
+  }
+  setMatrixAt(i, m) { const [c, j] = this.map[i]; c.mesh.setMatrixAt(j, m); }
+  setColorAt(i, col) { const [c, j] = this.map[i]; c.mesh.setColorAt(j, col); }
+  set visible(v) { for (const m of this.meshes) m.visible = v; }
+  set castShadow(v) { for (const m of this.meshes) m.castShadow = v; }
+  set receiveShadow(v) { for (const m of this.meshes) m.receiveShadow = v; }
+  addTo(scene) {
+    for (const m of this.meshes) { m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); scene.add(m); }
+  }
+}
+
 export class Vegetation {
   constructor(scene, colliders, quality = 'medium') {
     this.scene = scene;
@@ -153,8 +183,8 @@ export class Vegetation {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3426, roughness: 1 });
     const pineMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     addWind(pineMat, this.uniforms, '0.012');
-    this.pineTrunk = new THREE.InstancedMesh(trunkGeo(3, 0.3), trunkMat, pinePts.length);
-    this.pine = new THREE.InstancedMesh(pineFoliage(), pineMat, pinePts.length);
+    this.pineTrunk = new CellBatch(trunkGeo(3, 0.3), trunkMat, pinePts);
+    this.pine = new CellBatch(pineFoliage(), pineMat, pinePts);
     pinePts.forEach((p, i) => {
       const s = 0.7 + rnd() * 0.8;
       dummy.position.set(p[0], p[1] - 0.2, p[2]);
@@ -176,8 +206,8 @@ export class Vegetation {
     for (const [x, z] of [[-30, -32], [38, -38], [-42, 30], [55, 40], [-20, 52]]) leafPts.push([x, heightAt(x, z), z]);
     const leafMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
     addWind(leafMat, this.uniforms, '0.03');
-    this.leafTrunk = new THREE.InstancedMesh(branchyTrunk(), trunkMat, leafPts.length);
-    this.leaf = new THREE.InstancedMesh(leafyFoliage(7), leafMat, leafPts.length);
+    this.leafTrunk = new CellBatch(branchyTrunk(), trunkMat, leafPts);
+    this.leaf = new CellBatch(leafyFoliage(7), leafMat, leafPts);
     this.leafSeeds = [];
     leafPts.forEach((p, i) => {
       const s = 0.75 + rnd() * 0.6;
@@ -195,7 +225,7 @@ export class Vegetation {
     // --- Cacti ---
     const cactPts = scatter(Math.floor(500 * q), (x, z) => desertFactor(x, z) * 0.5 * (1 - smoothstep(10, 30, heightAt(x, z))));
     const cactMat = new THREE.MeshStandardMaterial({ color: 0x527a3c, roughness: 0.8 });
-    this.cactus = new THREE.InstancedMesh(cactusGeo(), cactMat, cactPts.length);
+    this.cactus = new CellBatch(cactusGeo(), cactMat, cactPts);
     cactPts.forEach((p, i) => {
       const s = 0.7 + rnd() * 0.7;
       dummy.position.set(p[0], p[1] - 0.1, p[2]); dummy.rotation.set(0, rnd() * 6, 0); dummy.scale.set(s, s * (0.8 + rnd() * 0.5), s);
@@ -207,7 +237,7 @@ export class Vegetation {
     const rockPts = scatter(Math.floor(900 * q), (x, z) => 0.15 + canyonFactor(x, z) * 0.5 + mountainFactor(x, z) * 0.4 + desertFactor(x, z) * 0.2, 0.5);
     const rockGeo = displace(new THREE.DodecahedronGeometry(1, 1), 0.35, 9);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, vertexColors: false });
-    this.rocks = new THREE.InstancedMesh(rockGeo, rockMat, rockPts.length);
+    this.rocks = new CellBatch(rockGeo, rockMat, rockPts);
     const col = new THREE.Color();
     rockPts.forEach((p, i) => {
       const s = 0.4 + Math.pow(rnd(), 2.2) * 2.6;
@@ -224,7 +254,7 @@ export class Vegetation {
     const bushPts = scatter(Math.floor(1800 * q), (x, z) => 0.25 + desertFactor(x, z) * 0.4 + forestFactor(x, z) * 0.2);
     const bushMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
     addWind(bushMat, this.uniforms, '0.04');
-    this.bushes = new THREE.InstancedMesh(bushGeo(), bushMat, bushPts.length);
+    this.bushes = new CellBatch(bushGeo(), bushMat, bushPts);
     this.bushInfo = [];
     bushPts.forEach((p, i) => {
       const s = 0.6 + rnd() * 0.9;
@@ -235,8 +265,7 @@ export class Vegetation {
 
     for (const m of [this.pineTrunk, this.pine, this.leafTrunk, this.leaf, this.cactus, this.rocks, this.bushes]) {
       m.castShadow = true; m.receiveShadow = true;
-      m.instanceMatrix.needsUpdate = true;
-      scene.add(m);
+      m.addTo(scene);
     }
     this.bushes.castShadow = false;
 

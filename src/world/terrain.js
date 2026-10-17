@@ -154,9 +154,10 @@ export function heightAt(x, z) {
   // River channel
   const ri = riverInfo(x, z);
   const w = ri.width;
-  if (ri.d < w + 16) {
+  const valley = 16 + Math.max(0, h - 10) * 0.7 * smoothstep(50, 110, Math.hypot(x - POOL.x, z - POOL.z));
+  if (ri.d < w + valley) {
     const bed = -1.25 - 0.6 * (1 - Math.min(1, ri.d / w));
-    const t = smoothstep(w * 0.55, w + 16, ri.d);
+    const t = smoothstep(w * 0.55, w + valley, ri.d);
     h = lerp(bed, h, t);
   }
   // Plunge pool
@@ -312,7 +313,8 @@ export class Terrain {
         .replace('#include <color_fragment>', `#include <color_fragment>
           float d1 = texture2D(uDetail, vWPos.xz*0.21).r;
           float d2 = texture2D(uDetail, vWPos.xz*0.031).r;
-          float d3 = texture2D(uDetail, vWPos.zy*0.15).r;
+          vec3 bw = abs(vWN); bw /= (bw.x + bw.z + 0.0001);
+          float d3 = mix(texture2D(uDetail, vWPos.xy*vec2(0.15,0.3)).r, texture2D(uDetail, vWPos.zy*vec2(0.15,0.3)).r, bw.x);
           float steep = 1.0 - smoothstep(0.55, 0.9, vWN.y);
           float det = mix(d1*0.6 + d2*0.4, d3, steep);
           diffuseColor.rgb *= 0.72 + det*0.62;

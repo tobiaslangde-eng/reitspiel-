@@ -107,7 +107,7 @@ export class Water {
       if (i > 0) len += p.distanceTo(pts[i - 1]);
       pos.push(p.x + nx * W, 0, p.z + nz * W, p.x - nx * W, 0, p.z - nz * W);
       uvs.push(0, len * 0.08, 1, len * 0.08);
-      if (i < N) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
