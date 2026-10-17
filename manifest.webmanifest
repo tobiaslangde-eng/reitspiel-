@@ -1,0 +1,19 @@
+{
+  "name": "Silver Spur Ranch – Western-Reitspiel",
+  "short_name": "Spur Ranch",
+  "description": "3D-Western-Reitspiel: eigene Ranch, Pferde aller Rassen, Rodeos und die offene Prärie.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#1a0e08",
+  "theme_color": "#3a1e12",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

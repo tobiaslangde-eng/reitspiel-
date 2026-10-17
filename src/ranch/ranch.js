@@ -565,6 +565,16 @@ export class Ranch {
       if (e.code === 'KeyE') { e.stopImmediatePropagation(); this.confirmPlacing(); }
     };
     window.addEventListener('keydown', this.offKeys, true);
+    // on-screen buttons (touch & mouse)
+    const bar = document.createElement('div');
+    bar.id = 'place-bar';
+    bar.innerHTML = '<button class="btn">↻ Drehen</button><button class="btn gold">✔ Abstellen</button><button class="btn">✕ Abbrechen</button>';
+    const [rot, ok, cancel] = bar.querySelectorAll('button');
+    rot.onclick = () => { this.placing.rot += Math.PI / 8; };
+    ok.onclick = () => this.confirmPlacing();
+    cancel.onclick = () => this.cancelPlacing();
+    document.body.appendChild(bar);
+    this.placeBar = bar;
   }
 
   updatePlacing() {
@@ -592,6 +602,7 @@ export class Ranch {
   }
 
   cancelPlacing() {
+    if (this.placeBar) { this.placeBar.remove(); this.placeBar = null; }
     if (this.ghost) this.scene.remove(this.ghost);
     this.ghost = null;
     this.placing = null;

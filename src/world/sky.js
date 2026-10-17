@@ -131,6 +131,11 @@ export class Sky {
     this.darkness = 0;
   }
 
+  setShadowRange(s) {
+    Object.assign(this.sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s });
+    this.sun.shadow.camera.updateProjectionMatrix();
+  }
+
   setShadowQuality(q) {
     const size = q === 'low' ? 1024 : q === 'high' ? 4096 : 2048;
     this.sun.shadow.mapSize.set(size, size);

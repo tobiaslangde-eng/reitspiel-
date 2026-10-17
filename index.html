@@ -2,8 +2,17 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Silver Spur Ranch – Western-Reitspiel</title>
+  <meta name="description" content="3D-Western-Reitspiel: deine eigene Ranch, Pferde aller Rassen, Rodeos und die offene Prärie." />
+  <meta name="theme-color" content="#3a1e12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spur Ranch" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Rye&family=Alegreya+Sans:wght@400;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
@@ -13,6 +22,8 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="vignette"></div>
+  <div id="rotate-hint"><div>📱↻</div><p>Dreh dein Handy ins <b>Querformat</b>,<br>dann geht der Ritt los!</p></div>
 
   <div id="hud" class="hidden">
     <div id="hud-top-left" class="hud-box">
@@ -78,10 +89,12 @@
         <div class="menu-row">
           <label>Grafik
             <select id="opt-quality">
-              <option value="auto">Automatisch</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option>
+              <option value="auto">Automatisch</option><option value="mobile">Handy / Tablet</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option>
             </select>
           </label>
         </div>
+        <button id="btn-install" class="hidden">📲 Als App installieren</button>
+        <div id="ios-hint" class="hidden">📲 Als App installieren: <b>Teilen</b> ⎋ → <b>Zum Home-Bildschirm</b></div>
       </div>
       <div id="menu-new" class="hidden">
         <label class="field">Name der Reiterin <input id="new-name" value="Tessa" maxlength="20" /></label>

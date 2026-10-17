@@ -24,6 +24,9 @@ import { AudioEngine } from './audio/audio.js';
 import { UI } from './ui/ui.js';
 import { Menus } from './ui/menus.js';
 import { MainMenu } from './ui/mainmenu.js';
+import { TouchControls, isTouchDevice } from './ui/touch.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { GradeShader } from './fx/grade.js';
 import { newGameState, saveGame, loadGame } from './game/state.js';
 import { Ranch } from './ranch/ranch.js';
 import { Animals } from './ranch/animals.js';
@@ -51,6 +54,7 @@ class Game {
   }
 
   detectQuality() {
+    if (isTouchDevice()) return 'mobile';
     const mem = navigator.deviceMemory || 8;
     const cores = navigator.hardwareConcurrency || 4;
     const small = Math.min(screen.width, screen.height) < 700;
@@ -67,8 +71,14 @@ class Game {
     try { await Promise.race([document.fonts.load('40px Rye'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* fonts optional */ }
 
     // Renderer
-    const r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: this.quality !== 'low', powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio, this.quality === 'high' ? 2 : this.quality === 'medium' ? 1.5 : 1));
+    const mobile = this.quality === 'mobile';
+    this.mobile = mobile;
+    // world detail tier used by terrain / vegetation / grass
+    this.detail = mobile ? 'low' : this.quality;
+    const usePost = this.quality === 'medium' || this.quality === 'high';
+    const r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !usePost && this.quality !== 'low', powerPreference: 'high-performance' });
+    const prCap = { high: 2, medium: 1.5, mobile: 1.6, low: 1 }[this.quality] || 1;
+    r.setPixelRatio(Math.min(window.devicePixelRatio, prCap));
     r.setSize(window.innerWidth, window.innerHeight);
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -85,15 +95,16 @@ class Game {
 
     await this.mainMenu.setLoading('Berge und Canyons wachsen …');
     this.colliders = new Colliders();
-    this.terrain = new Terrain(scene, this.quality);
+    this.terrain = new Terrain(scene, this.detail);
     this.sky = new Sky(scene);
-    this.sky.setShadowQuality(this.quality);
+    this.sky.setShadowQuality(this.detail);
+    if (mobile) this.sky.setShadowRange(45);
     this.weather = new Weather(scene);
     this.weather.override = state.settings.weatherOverride;
     this.water = new Water(scene);
     await this.mainMenu.setLoading('Bäume, Kakteen und Blumen sprießen …');
-    this.vegetation = new Vegetation(scene, this.colliders, this.quality);
-    this.grass = new Grass(scene, this.quality);
+    this.vegetation = new Vegetation(scene, this.colliders, this.detail);
+    this.grass = new Grass(scene, this.detail);
     this.fx = new FX(this);
     this.tack = new Tack(this);
 
@@ -136,13 +147,18 @@ class Game {
 
     // Post processing
     this.composer = null;
-    if (this.quality !== 'low') {
-      const comp = new EffectComposer(r);
+    if (usePost) {
+      const size = r.getDrawingBufferSize(new THREE.Vector2());
+      const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
+      const comp = new EffectComposer(r, rt);
       comp.addPass(new RenderPass(scene, this.camera));
       this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.6, 0.92);
       comp.addPass(this.bloom);
       comp.addPass(new OutputPass());
+      this.grade = new ShaderPass(GradeShader);
+      comp.addPass(this.grade);
       this.composer = comp;
+      document.getElementById('vignette').style.display = 'none';
     }
     this.pmrem = new THREE.PMREMGenerator(r);
     this.envT = 0;
@@ -155,7 +171,9 @@ class Game {
     // Events
     this.weather.onThunder = (delay) => this.onThunder(delay);
     window.addEventListener('resize', () => this.resize());
+    if (isTouchDevice()) this.touch = new TouchControls(this);
     this.canvas.addEventListener('click', () => {
+      if (this.touch) return;
       if (!this.ui.modalOpen && !this.photo.active && this.started && document.pointerLockElement !== this.canvas) {
         this.canvas.requestPointerLock?.();
       }
@@ -328,6 +346,8 @@ class Game {
     this.updateWorld(dt, hoursDelta);
     this.updateInteraction();
     this.updateHudThrottled(dt);
+    if (this.touch) this.touch.update();
+    if (this.grade) this.grade.uniforms.uTime.value = this.time;
 
     // render
     if (this.composer && !this.photo.noBloom) this.composer.render();
@@ -488,4 +508,9 @@ class Game {
 
 const game = new Game();
 window.game = game;
+
+// Progressive Web App: offline cache & install support
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW', e)));
+}
 export { game, newGameState, loadGame, WEATHER };

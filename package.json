@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "build": "node tools/build-horses.mjs && node tools/build-sw.mjs",
+    "build:sw": "node tools/build-sw.mjs"
   }
 }

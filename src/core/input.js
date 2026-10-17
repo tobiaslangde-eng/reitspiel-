@@ -13,6 +13,7 @@ export class Input {
     this.mouseY = 0;
     this.enabled = true;
     this.lastMouseMove = 0;
+    this.joy = { active: false, x: 0, y: 0 };
 
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
@@ -44,6 +45,13 @@ export class Input {
     canvas.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
+  // used by on-screen touch buttons
+  virtualDown(code) {
+    if (!this.down.has(code)) this.pressed.add(code);
+    this.down.add(code);
+  }
+  virtualUp(code) { this.down.delete(code); }
+
   isDown(code) { return this.enabled && this.down.has(code); }
   wasPressed(code) { return this.enabled && this.pressed.has(code); }
   endFrame() {

@@ -103,6 +103,17 @@ export class Player {
       if (inp.isDown('KeyA') || inp.isDown('ArrowLeft')) input.turn += 1;
       if (inp.isDown('KeyD') || inp.isDown('ArrowRight')) input.turn -= 1;
       input.sprint = inp.isDown('ShiftLeft') || inp.isDown('ShiftRight');
+      const j = inp.joy;
+      if (j && j.active) {
+        // analog stick: push forward to ride, the further the faster; sideways steers
+        const mag = Math.hypot(j.x, j.y);
+        if (j.y > 0.18) {
+          input.forward = 1;
+          this.gait = mag < 0.55 ? 1 : mag < 0.9 ? 2 : 3;
+        } else if (j.y < -0.45) input.forward = -1;
+        input.turn = Math.max(-1, Math.min(1, -j.x * 1.3));
+        if (Math.abs(input.turn) < 0.12) input.turn = 0;
+      }
       input.jump = inp.wasPressed('Space');
       input.slide = inp.wasPressed('KeyX');
       if (inp.isDown('KeyC')) input.spin = input.turn >= 0 ? (input.turn > 0 ? 1 : (h.maneuver?.dir || 1)) : -1;
@@ -152,12 +163,17 @@ export class Player {
       if (inp.isDown('KeyD') || inp.isDown('ArrowRight')) mx += 1;
       this.crouch = inp.isDown('ControlLeft') || inp.isDown('KeyC');
     }
+    let joyRun = false;
+    if (!locked && inp.joy && inp.joy.active && Math.hypot(inp.joy.x, inp.joy.y) > 0.15) {
+      mx = inp.joy.x; mz = inp.joy.y;
+      joyRun = Math.hypot(mx, mz) > 0.95;
+    }
     const camYaw = g.followCam.yaw;
     const fwd = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     const dir = new THREE.Vector3().addScaledVector(fwd, mz).addScaledVector(right, mx);
     const moving = dir.lengthSq() > 0.01 && !this.rider.action;
-    const run = inp.isDown('ShiftLeft') || inp.isDown('ShiftRight');
+    const run = joyRun || inp.isDown('ShiftLeft') || inp.isDown('ShiftRight');
     const target = moving ? (this.crouch ? 0.9 : run ? 5.2 : 1.9) : 0;
     this.speed = damp(this.speed, target, 8, dt);
     if (moving) {

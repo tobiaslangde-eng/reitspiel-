@@ -69,7 +69,7 @@ export class Care {
     const h = this.horse;
     el.innerHTML = `<div class="two-col"><div>
         <div class="section-title">Bürsten</div>
-        <p class="muted">Halte die Maustaste gedrückt und bürste den Schmutz aus dem Fell!</p>
+        <p class="muted">Halte die Maustaste gedrückt (oder wische mit dem Finger) und bürste den Schmutz aus dem Fell!</p>
         <canvas id="brush-canvas" width="420" height="260" style="width:100%;border-radius:10px;border:3px solid #7a5230;cursor:grab;background:#6a4a30"></canvas>
         <div id="brush-progress" class="muted"></div>
       </div><div>
@@ -115,9 +115,10 @@ export class Care {
     };
     update();
     let down = false, strokes = 0, done = false;
-    cv.onmousedown = () => { down = true; cv.style.cursor = 'grabbing'; };
-    cv.onmouseup = cv.onmouseleave = () => { down = false; cv.style.cursor = 'grab'; };
-    cv.onmousemove = (e) => {
+    cv.style.touchAction = 'none';
+    cv.onpointerdown = (e) => { down = true; cv.style.cursor = 'grabbing'; try { cv.setPointerCapture(e.pointerId); } catch { /* ignore */ } cv.onpointermove(e); };
+    cv.onpointerup = cv.onpointercancel = () => { down = false; cv.style.cursor = 'grab'; };
+    cv.onpointermove = (e) => {
       if (!down || done) return;
       const r = cv.getBoundingClientRect();
       const x = (e.clientX - r.left) * (cv.width / r.width), y = (e.clientY - r.top) * (cv.height / r.height);

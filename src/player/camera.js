@@ -66,6 +66,10 @@ export class FollowCamera {
     const fwd = new THREE.Vector3(-Math.sin(this.freeYaw) * Math.cos(this.freePitch), Math.sin(this.freePitch), -Math.cos(this.freeYaw) * Math.cos(this.freePitch));
     const right = new THREE.Vector3(Math.cos(this.freeYaw), 0, -Math.sin(this.freeYaw));
     const sp = (inp.isDown('ShiftLeft') ? 14 : 5) * dt;
+    if (inp.joy && inp.joy.active) {
+      this.freePos.addScaledVector(fwd, sp * inp.joy.y);
+      this.freePos.addScaledVector(right, sp * inp.joy.x);
+    }
     if (inp.isDown('KeyW')) this.freePos.addScaledVector(fwd, sp);
     if (inp.isDown('KeyS')) this.freePos.addScaledVector(fwd, -sp);
     if (inp.isDown('KeyA')) this.freePos.addScaledVector(right, -sp);

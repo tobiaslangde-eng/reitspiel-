@@ -197,7 +197,7 @@ export class Menus {
       <div class="section-title">Steuerung</div>
       <label>Maus-Empfindlichkeit <input type="range" id="ms" min="0.3" max="2.5" step="0.1" value="${st.sensitivity}"></label>
       <div class="section-title">Grafik</div>
-      <label>Qualität <select id="q"><option value="auto">Automatisch</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option></select></label>
+      <label>Qualität <select id="q"><option value="auto">Automatisch</option><option value="mobile">Handy / Tablet</option><option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option></select></label>
       <p class="muted">Aktuell: ${g.quality}. Änderungen gelten nach Neustart.</p>
     </div><div>
       <div class="section-title">Jahreszeit</div>

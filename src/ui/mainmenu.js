@@ -1,6 +1,7 @@
 import { STARTER_HORSES, newGameState, loadGame, hasSave } from '../game/state.js';
 import { BREEDS, COATS, PERSONALITIES } from '../horse/breeds.js';
 import { esc } from './ui.js';
+import { isTouchDevice } from './touch.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,6 +13,22 @@ export class MainMenu {
     const q = $('opt-quality');
     const saved = loadGame();
     if (saved) q.value = saved.settings.quality || 'auto';
+    // PWA install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.installEvent = e;
+      $('btn-install').classList.remove('hidden');
+    });
+    $('btn-install').onclick = async () => {
+      if (!this.installEvent) return;
+      this.installEvent.prompt();
+      await this.installEvent.userChoice;
+      this.installEvent = null;
+      $('btn-install').classList.add('hidden');
+    };
+    const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone;
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone) $('ios-hint').classList.remove('hidden');
+
     $('btn-continue').onclick = () => {
       const s = loadGame();
       if (!s) return;
@@ -57,6 +74,14 @@ export class MainMenu {
 
   async go(state) {
     this.game.audio.init();
+    // phones: go fullscreen in landscape (ignored where unsupported, e.g. iOS Safari)
+    if (isTouchDevice()) {
+      try {
+        const el = document.documentElement;
+        if (el.requestFullscreen && !document.fullscreenElement) await el.requestFullscreen({ navigationUI: 'hide' });
+        if (screen.orientation?.lock) await screen.orientation.lock('landscape');
+      } catch { /* not supported */ }
+    }
     $('menu-main').classList.add('hidden');
     $('menu-new').classList.add('hidden');
     $('loading').classList.remove('hidden');

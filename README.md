@@ -25,6 +25,27 @@ Die Seite muss über `http://` geöffnet werden, weil ES-Module per Doppelklick 
 Unterstützt werden aktuelle Desktop-Browser (Chrome, Edge, Firefox, Safari) mit Tastatur und Maus.
 Die Grafikqualität (Niedrig/Mittel/Hoch) wird im Startmenü gewählt.
 
+## Auf dem Handy (Web-App)
+
+Das Spiel ist eine installierbare Web-App (PWA). Es läuft nach dem ersten Laden auch offline.
+
+1. Spiel über **https** aufrufen, zum Beispiel per GitHub Pages.
+2. **Android (Chrome):** im Startmenü auf „📲 Als App installieren“ tippen.
+   **iPhone (Safari):** auf *Teilen* tippen, dann *Zum Home-Bildschirm*.
+3. Das Handy quer halten. Die App startet im Vollbild.
+
+Touch-Steuerung:
+- **Joystick links:** reiten oder laufen. Je weiter du drückst, desto schneller wird die Gangart.
+- **Rechts wischen:** Kamera drehen. Mit zwei Fingern zoomen.
+- **Knöpfe rechts:** Springen, Sprint, Stopp (Sliding Stop), Spin, Lasso, Loben. Zu Fuß: Pfeifen, Pflege, Ducken.
+- Ein **goldener Kontext-Knopf** erscheint, sobald du aufsteigen, sprechen oder etwas benutzen kannst.
+- **Oben:** Menü, Karte, Aufträge, Foto, Pause.
+
+Auf Touch-Geräten wählt das Spiel automatisch die Grafikstufe „Handy“. Dabei laufen mittelfeine Pferdemodelle, die Pixeldichte ist reduziert und die Kantenglättung kommt direkt von der Grafikkarte.
+
+Nach Änderungen an Dateien `npm run build:sw` ausführen, damit installierte Apps die neue Version laden.
+Die Pferdemodelle werden mit `node tools/build-horses.mjs` neu berechnet.
+
 ## Steuerung
 
 | Taste | Reiten | Zu Fuß |
@@ -70,7 +91,9 @@ Die Grafikqualität (Niedrig/Mittel/Hoch) wird im Startmenü gewählt.
 ## Technik
 
 - `src/world/`: Terrain mit Höhenfunktion, Himmel-Shader, Wasser, Wetter, Vegetation, Gebäude, Stadt und Orte
-- `src/horse/`: Rassen, das prozedurale Pferdemodell mit Fell-Shader, Animation und Physik sowie die Ausrüstung
+- `src/horse/`: Rassen, Anatomie (Skelett und Formen), Pferdemodell mit Fell-Shader, Animation und Physik sowie die Ausrüstung
+- `tools/build-horses.mjs`: formt die Pferde aus einem Distanzfeld mit über 60 anatomischen Formen (Muskeln, Gelenke, Kopf). Daraus entstehen glatte Skinned Meshes mit eingebackener Umgebungsverdeckung in drei Detailstufen (`assets/horses/`).
+- `sw.js`, `manifest.webmanifest`, `icons/`: Web-App für Handys (offline, Vollbild, Querformat)
 - `src/player/`: Reiterin, Steuerung und Kamera
 - `src/game/`: Spielstand, Shop-Katalog, Aufträge, Rodeo, Lasso, Pflege, Wildpferde und Zucht, Errungenschaften, Fotomodus
 - `src/audio/`: WebAudio-Synthese mit Karplus-Strong-Gitarre, Mundharmonika und Geräuschen
