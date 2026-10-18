@@ -6,7 +6,7 @@
 export const ARCHETYPES = {
   light: { bodyLen: 1.0, bulk: 0.88, legLen: 1.06, legThick: 0.85, neckLen: 1.08, headLen: 0.96 },
   warm: { bodyLen: 1.0, bulk: 1.0, legLen: 1.03, legThick: 1.0, neckLen: 1.07, headLen: 1.0 },
-  stock: { bodyLen: 0.98, bulk: 1.08, legLen: 0.96, legThick: 1.08, neckLen: 0.93, headLen: 0.96 },
+  stock: { bodyLen: 0.97, bulk: 1.05, legLen: 1.0, legThick: 1.06, neckLen: 0.95, headLen: 0.95 },
   heavy: { bodyLen: 1.03, bulk: 1.27, legLen: 0.95, legThick: 1.33, neckLen: 1.0, headLen: 1.07 },
   pony: { bodyLen: 1.0, bulk: 1.2, legLen: 0.86, legThick: 1.2, neckLen: 0.9, headLen: 1.03 },
 };
@@ -65,15 +65,18 @@ export function apply(m, p) {
 // Skeleton
 // ---------------------------------------------------------------------------
 export const FRONT_REST = [0.02, 0, -0.5];
-export const HIND_REST = [0.48, -0.48, -0.42];
-export const NECK_TILT = 0.62;
-export const HEAD_REST = 1.5;
+export const HIND_REST = [0.5, -0.5, -0.42];
+export const NECK_TILT = 0.72;
+export const HEAD_REST = 1.68;
+export const EAR_REST = 0.75;
 export const TAIL_SEGS = 7;
 
+// Proportions follow a real horse: elbow at ~60 % of the withers height, knee and hock low,
+// short cannons, a sloped shoulder and a head about 40 % of the withers height.
 export function dimensions(P, tailHigh = false) {
   const L = P.legLen, bulk = P.bulk, th = P.legThick;
-  const fSeg = [0.46 * L, 0.4 * L, 0.24 * L];
-  const hSeg = [0.56 * L, 0.42 * L, 0.24 * L];
+  const fSeg = [0.47 * L, 0.27 * L, 0.24 * L];
+  const hSeg = [0.62 * L, 0.36 * L, 0.24 * L];
   const vert = (segs, rest) => {
     let a = 0, y = 0;
     for (let i = 0; i < 3; i++) { a += rest[i]; y += (i === 2 ? segs[i] - 0.08 : segs[i]) * Math.cos(a); }
@@ -81,11 +84,13 @@ export function dimensions(P, tailHigh = false) {
   };
   const hipF = vert(fSeg, FRONT_REST);
   const hipH = vert(hSeg, HIND_REST);
-  const cy = hipF + 0.24 * bulk;
-  const zLen = 0.82 * P.bodyLen;
+  const cy = hipF + 0.25 * bulk;
+  const zLen = 0.76 * P.bodyLen;
+  const headLen = 0.65 * P.headLen;
   return {
     L, bulk, th, fSeg, hSeg, hipF, hipH, cy, zLen,
-    neckLen: 0.78 * P.neckLen, headLen: 0.74 * P.headLen, legThick: th, neckTilt: NECK_TILT,
+    neckLen: 0.74 * P.neckLen, headLen, legThick: th, neckTilt: NECK_TILT,
+    eye: [headLen * 0.3, -0.035],
     tailLen: 0.95, tailHigh,
   };
 }
@@ -96,13 +101,13 @@ export function skeleton(P, tailHigh = false) {
   const bones = [];
   const add = (name, parent, pos, rot = [0, 0, 0]) => { bones.push({ name, parent, pos, rot }); return bones.length - 1; };
   const body = add('body', -1, [0, 0, 0]);
-  const neck = add('neck', body, [0, d.cy + 0.08, d.zLen * 0.72], [NECK_TILT, 0, 0]);
-  const head = add('head', neck, [0, d.neckLen, 0.02], [HEAD_REST, 0, 0]);
-  add('earL', head, [0.055, 0.03, -0.07], [0.85, 0, 0.3]);
-  add('earR', head, [-0.055, 0.03, -0.07], [0.85, 0, -0.3]);
+  const neck = add('neck', body, [0, d.cy + 0.05, d.zLen * 0.74], [NECK_TILT, 0, 0]);
+  const head = add('head', neck, [0, d.neckLen, 0.0], [HEAD_REST, 0, 0]);
+  add('earL', head, [0.058, 0.035, -0.07], [EAR_REST, 0, 0.32]);
+  add('earR', head, [-0.058, 0.035, -0.07], [EAR_REST, 0, -0.32]);
   const legs = [
-    ['FL', 0.125 * d.bulk, d.hipF, d.zLen * 0.6, d.fSeg, FRONT_REST],
-    ['FR', -0.125 * d.bulk, d.hipF, d.zLen * 0.6, d.fSeg, FRONT_REST],
+    ['FL', 0.13 * d.bulk, d.hipF, d.zLen * 0.6, d.fSeg, FRONT_REST],
+    ['FR', -0.13 * d.bulk, d.hipF, d.zLen * 0.6, d.fSeg, FRONT_REST],
     ['HL', 0.14 * d.bulk, d.hipH, -d.zLen * 0.62, d.hSeg, HIND_REST],
     ['HR', -0.14 * d.bulk, d.hipH, -d.zLen * 0.62, d.hSeg, HIND_REST],
   ];
@@ -112,7 +117,7 @@ export function skeleton(P, tailHigh = false) {
     const fet = add('fet' + n, knee, [0, -segs[1], 0], [rest[2], 0, 0]);
     add('hoof' + n, fet, [0, -(segs[2] - 0.08), 0], [-(rest[0] + rest[1] + rest[2]), 0, 0]);
   }
-  let parent = add('tail0', body, [0, d.cy + 0.22 * d.bulk, -d.zLen * 0.98], [tailHigh ? 0.35 : 0.7, 0, 0]);
+  let parent = add('tail0', body, [0, d.cy + 0.25 * d.bulk, -d.zLen * 1.0], [tailHigh ? 0.35 : 0.7, 0, 0]);
   const segL = d.tailLen / TAIL_SEGS;
   for (let i = 1; i < TAIL_SEGS; i++) parent = add('tail' + i, parent, [0, -segL, 0], [-0.12, 0, 0]);
   return { bones, dims: d };
@@ -139,60 +144,78 @@ export function primitives(P) {
   const E = (bone, part, c, r, k, extra = {}) => prims.push({ type: 'ell', bone, part, c, r, k, ...extra });
   const RC = (bone, part, a, ra, bb, rb, k, extra = {}) => prims.push({ type: 'rcone', bone, part, a, b: bb, ra, rb, k, ...extra });
 
-  // --- body
-  E('body', 0, [0, C + 0.02, 0.05 * Z], [0.27 * b, 0.31 * b, 0.62 * Z], 0.1);
-  E('body', 0, [0, C - 0.1 * b, -0.02 * Z], [0.255 * b, 0.24 * b, 0.5 * Z], 0.1);
-  E('body', 0, [0, C - 0.02, 0.72 * Z], [0.21 * b, 0.3 * b, 0.27 * Z], 0.1);
-  for (const s of [-1, 1]) E('body', 0, [s * 0.12 * b, C + 0.05, 0.6 * Z], [0.12 * b, 0.3 * b, 0.17], 0.08, { rot: [-0.45, 0, 0] });
-  E('body', 0, [0, C + 0.27 * b, 0.48 * Z], [0.075 * b, 0.1, 0.24 * Z], 0.08);
-  E('body', 0, [0, C + 0.19 * b, -0.1 * Z], [0.2 * b, 0.12 * b, 0.5 * Z], 0.1);
-  for (const s of [-1, 1]) E('body', 0, [s * 0.115 * b, C + 0.04, -0.68 * Z], [0.17 * b, 0.3 * b, 0.27 * Z], 0.1);
-  E('body', 0, [0, C + 0.21 * b, -0.62 * Z], [0.19 * b, 0.12 * b, 0.3 * Z], 0.1);
-  E('body', 0, [0, C - 0.03, -0.86 * Z], [0.19 * b, 0.25 * b, 0.13], 0.08);
+  // --- body (z forward, the legs attach at ~0.6 Z front and -0.62 Z behind)
+  E('body', 0, [0, C - 0.02, 0.06 * Z], [0.29 * b, 0.3 * b, 0.62 * Z], 0.12); // rib cage
+  E('body', 0, [0, C - 0.08 * b, -0.14 * Z], [0.28 * b, 0.25 * b, 0.5 * Z], 0.12); // belly
+  E('body', 0, [0, C - 0.03, 0.7 * Z], [0.2 * b, 0.28 * b, 0.3 * Z], 0.1); // forehand
   for (const s of [-1, 1]) {
-    E('body', 0, [s * 0.15 * b, C - 0.17 * b, 0.6 * Z], [0.075, 0.1, 0.1], 0.06);
-    E('body', 0, [s * 0.17 * b, C - 0.12 * b, -0.5 * Z], [0.08, 0.14, 0.12], 0.06);
+    E('body', 0, [s * 0.08 * b, C - 0.15, 0.97 * Z], [0.09 * b, 0.14, 0.1], 0.08); // chest muscles
+    E('body', 0, [s * 0.125 * b, C + 0.07, 0.68 * Z], [0.085 * b, 0.3, 0.13], 0.09, { rot: [-0.75, 0, 0] }); // shoulder blade
+    E('body', 0, [s * 0.145 * b, C - 0.21, 0.58 * Z], [0.07 * b, 0.09, 0.09], 0.06); // elbow
   }
-  // --- neck (local +y along the neck, crest on -z)
-  RC('neck', 1, [0, -0.15, 0.03], 0.27 * (0.9 + 0.1 * b), [0, N, 0.0], 0.13, 0.12, { scale: [0.72 * sb, 1, 1] });
-  E('neck', 1, [0, N * 0.45, -0.14], [0.055 * sb, N * 0.5, 0.06], 0.08);
-  E('neck', 1, [0, N * 0.92, 0.07], [0.065, 0.09, 0.08], 0.06);
+  E('body', 0, [0, C + 0.25 * b, 0.4 * Z], [0.07 * b, 0.09, 0.22 * Z], 0.09); // withers
+  E('body', 0, [0, C + 0.17 * b, -0.15 * Z], [0.2 * b, 0.13 * b, 0.5 * Z], 0.1); // back and loin
+  E('body', 0, [0, C + 0.2 * b, -0.68 * Z], [0.2 * b, 0.12 * b, 0.3 * Z], 0.1); // croup
+  for (const s of [-1, 1]) {
+    E('body', 0, [s * 0.12 * b, C + 0.02, -0.72 * Z], [0.165 * b, 0.3 * b, 0.27 * Z], 0.1); // hindquarters
+    E('body', 0, [s * 0.1 * b, C - 0.12, -0.88 * Z], [0.12 * b, 0.24 * b, 0.13], 0.09); // buttock
+    E('body', 0, [s * 0.165 * b, C - 0.2 * b, -0.5 * Z], [0.08 * b, 0.13, 0.12], 0.07); // stifle
+  }
+  // --- neck (local +y along the neck, crest on -z, throat on +z)
+  RC('neck', 1, [0, -0.12, 0.05], 0.28 * (0.9 + 0.1 * b), [0, N * 0.97, 0.02], 0.11, 0.14, { scale: [0.6 * sb, 1, 1] });
+  E('neck', 1, [0, N * 0.48, -0.115], [0.06 * sb, N * 0.5, 0.075], 0.1); // crest
+  E('neck', 1, [0, N * 0.93, 0.06], [0.07, 0.08, 0.08], 0.07); // throat latch
+  E('neck', 1, [0, 0.02, 0.1], [0.19 * b, 0.2, 0.2], 0.12); // base into the shoulders
   // --- head (local +y toward the muzzle, face on -z, jaw on +z)
-  E('head', 2, [0, 0.04, -0.01], [0.11, 0.11, 0.12], 0.06);
+  const ey = d.eye[0];
+  E('head', 2, [0, 0.05, -0.02], [0.095, 0.1, 0.1], 0.06); // poll
+  E('head', 2, [0, ey - 0.02, -0.05], [0.1, 0.13, 0.07], 0.06); // forehead
   for (const s of [-1, 1]) {
-    E('head', 2, [s * 0.056, 0.17, 0.07], [0.064, 0.15, 0.12], 0.06);
-    E('head', 2, [s * 0.072, 0.21, -0.035], [0.035, 0.05, 0.035], 0.03);
+    E('head', 2, [s * 0.058, ey - 0.03, 0.075], [0.052, 0.13, 0.12], 0.06); // jowl
+    E('head', 2, [s * 0.075, ey - 0.04, -0.06], [0.03, 0.04, 0.03], 0.03); // brow above the eye
+    E('head', 2, [s * 0.07, ey + 0.09, 0.0], [0.028, 0.08, 0.032], 0.04); // facial crest
   }
-  RC('head', 2, [0, 0.05, -0.03], 0.1, [0, L * 0.8, -0.02], 0.066, 0.05, { scale: [0.95, 1, 1] });
-  E('head', 2, [0, L * 0.9, 0.0], [0.078, 0.08, 0.09], 0.05);
-  E('head', 2, [0, L * 0.985, 0.01], [0.062, 0.04, 0.062], 0.03);
-  E('head', 2, [0, L * 0.9, 0.065], [0.045, 0.06, 0.045], 0.03);
-  for (const s of [-1, 1]) prims.push({ type: 'sub', bone: 'head', part: 2, c: [s * 0.04, L * 0.985, -0.05], r: 0.022, k: 0.018 });
+  RC('head', 2, [0, ey - 0.06, -0.03], 0.095, [0, L * 0.82, -0.005], 0.06, 0.06, { scale: [0.92, 1, 1] }); // face
+  RC('head', 2, [0, ey + 0.04, 0.06], 0.07, [0, L * 0.84, 0.035], 0.056, 0.06, { scale: [0.85, 1, 1] }); // lower jaw
+  E('head', 2, [0, L * 0.9, 0.005], [0.064, 0.08, 0.078], 0.05); // muzzle
+  for (const s of [-1, 1]) E('head', 2, [s * 0.04, L * 0.93, -0.035], [0.034, 0.05, 0.034], 0.03); // nostril wings
+  E('head', 2, [0, L * 0.965, 0.035], [0.058, 0.04, 0.06], 0.03); // lips
+  E('head', 2, [0, L * 0.88, 0.085], [0.04, 0.055, 0.035], 0.03); // chin
+  for (const s of [-1, 1]) { // comma-shaped nostrils
+    prims.push({ type: 'sub', bone: 'head', part: 2, c: [s * 0.046, L * 0.965, -0.045], r: 0.016, k: 0.014 });
+    prims.push({ type: 'sub', bone: 'head', part: 2, c: [s * 0.054, L * 0.945, -0.03], r: 0.012, k: 0.012 });
+  }
+  prims.push({ type: 'sub', bone: 'head', part: 2, c: [0, L * 1.0, 0.035], r: 0.012, k: 0.01 }); // mouth corner
   // --- ears (tip along local -y)
-  for (const e of ['earL', 'earR']) RC(e, 2, [0, 0, 0], 0.036, [0, -0.15, 0], 0.008, 0.025, { scale: [1, 1, 0.6] });
-  // --- legs
+  for (const e of ['earL', 'earR']) {
+    RC(e, 2, [0, 0, 0], 0.034, [0, -0.15, 0], 0.008, 0.025, { scale: [1.1, 1, 0.55] });
+    E(e, 2, [0, -0.06, 0], [0.036, 0.06, 0.02], 0.02);
+  }
+  // --- legs (front of the leg is local +z)
   ['FL', 'FR', 'HL', 'HR'].forEach((n, i) => {
     const front = i < 2;
     const segs = front ? d.fSeg : d.hSeg;
     const part = 3 + i;
     if (front) {
-      RC('hip' + n, part, [0, 0.12, 0], 0.12 * th, [0, -segs[0] + 0.04, 0], 0.058 * th, 0.07, { scale: [0.85, 1, 1] });
-      E('hip' + n, part, [0, -segs[0] * 0.3, 0.012], [0.075 * th, 0.17, 0.085 * th], 0.04);
-      E('knee' + n, part, [0, 0, 0.004], [0.058 * th, 0.065, 0.054 * th], 0.03);
+      RC('hip' + n, part, [0, 0.12, 0.01], 0.125 * th, [0, -segs[0] * 0.8, 0], 0.052 * th, 0.08, { scale: [0.82, 1, 1] }); // forearm
+      E('hip' + n, part, [0, -segs[0] * 0.22, 0.02], [0.078 * th, 0.18, 0.082 * th], 0.06);
+      E('knee' + n, part, [0, 0.015, 0.006], [0.048 * th, 0.06, 0.048 * th], 0.04); // knee
+      E('knee' + n, part, [0, 0.0, -0.035 * th], [0.028 * th, 0.04, 0.025], 0.03);
     } else {
-      RC('hip' + n, part, [0, 0.16, 0.02], 0.17 * th, [0, -segs[0] * 0.45, 0], 0.1 * th, 0.09, { scale: [0.75, 1, 1] });
-      RC('hip' + n, part, [0, -segs[0] * 0.4, 0], 0.1 * th, [0, -segs[0], 0], 0.064 * th, 0.05, { scale: [0.75, 1, 1] });
-      E('knee' + n, part, [0, 0, -0.018], [0.052 * th, 0.07, 0.068 * th], 0.03);
-      E('knee' + n, part, [0, 0.035, -0.07 * th], [0.03, 0.04, 0.03], 0.03);
+      E('hip' + n, part, [0, -segs[0] * 0.4, -0.035], [0.08 * th, segs[0] * 0.36, 0.1 * th], 0.08); // gaskin
+      RC('hip' + n, part, [0, 0.14, 0.02], 0.17 * th, [0, -segs[0] * 0.45, 0], 0.095 * th, 0.1, { scale: [0.75, 1, 1] });
+      RC('hip' + n, part, [0, -segs[0] * 0.4, 0], 0.08 * th, [0, -segs[0], 0], 0.056 * th, 0.05, { scale: [0.72, 1, 1] });
+      E('knee' + n, part, [0, 0.01, -0.01], [0.048 * th, 0.07, 0.062 * th], 0.04); // hock
+      E('knee' + n, part, [0, 0.05, -0.07 * th], [0.026, 0.05, 0.03], 0.03); // point of hock
     }
-    RC('knee' + n, part, [0, 0, 0], 0.05 * th, [0, -segs[1], 0], 0.046 * th, 0.03, { scale: [0.82, 1, 1] });
-    E('knee' + n, part, [0, -segs[1] * 0.5, -0.03 * th], [0.022 * th, segs[1] * 0.45, 0.028 * th], 0.02);
-    E('fet' + n, part, [0, 0, -0.008], [0.056 * th, 0.06, 0.06 * th], 0.03);
-    RC('fet' + n, part, [0, 0, 0], 0.046 * th, [0, -(segs[2] - 0.08), 0.004], 0.05 * th, 0.03);
+    RC('knee' + n, part, [0, -0.02, 0], 0.042 * th, [0, -segs[1], 0], 0.04 * th, 0.03, { scale: [0.78, 1, 1] }); // cannon
+    E('knee' + n, part, [0, -segs[1] * 0.5, -0.03 * th], [0.02 * th, segs[1] * 0.46, 0.024 * th], 0.025); // tendons
+    E('fet' + n, part, [0, 0.0, -0.012], [0.047 * th, 0.052, 0.055 * th], 0.03); // fetlock
+    RC('fet' + n, part, [0, 0, 0], 0.04 * th, [0, -(segs[2] - 0.08), 0.004], 0.048 * th, 0.03); // pastern
     prims.push({ type: 'hoof', bone: 'hoof' + n, part: 7 + i, a: [0, 0.01, 0.006], b: [0, -0.088, 0.02], ra: 0.054 * th, rb: 0.07 * th, k: 0.012 });
   });
   // --- tail dock
-  RC('tail0', 0, [0, 0.04, 0], 0.055 * sb, [0, -0.2, 0], 0.035, 0.07);
+  RC('tail0', 0, [0, 0.05, 0], 0.06 * sb, [0, -0.2, 0], 0.036, 0.08);
   return prims;
 }
 

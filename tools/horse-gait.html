@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Gangarten-Ansicht</title>
+<style>html, body { margin: 0; background: #c9d3dc; } canvas { display: block; }</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Dev tool: drives the real Horse class through every gait and renders a contact sheet (side view).
+// tools/horse-gait.html?breed=quarter&coat=fuchs&rider=0  (serve from the repo root)
+import * as THREE from 'three';
+import { randomHorse } from './src/horse/breeds.js';
+import { loadHorseAssets } from './src/horse/horseModel.js';
+import { Horse } from './src/horse/horse.js';
+import { Tack } from './src/horse/tack.js';
+
+const q = new URLSearchParams(location.search);
+await loadHorseAssets(['', '-lo']);
+const COLS = 3, ROWS = 4, CW = 420, CH = 260;
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+r.setSize(CW * COLS, CH * ROWS);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.shadowMap.enabled = true;
+r.setScissorTest(true);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc9d3dc);
+scene.add(new THREE.HemisphereLight(0xdfeaff, 0x5a4a38, 1.2));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+sun.position.set(4, 6, -3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = sun.shadow.camera.bottom = -4;
+sun.shadow.camera.right = sun.shadow.camera.top = 4;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c9a6c }));
+ground.receiveShadow = true;
+scene.add(ground);
+
+const cam = new THREE.PerspectiveCamera(30, CW / CH, 0.1, 100);
+const ctx = { scene, camera: cam, weather: null, lodDistance: 999, colliders: { resolve: () => null } };
+ctx.tack = new Tack(ctx);
+const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'fuchs', markings: { socks: [0, 0, 0, 0], blaze: 0 } });
+data.tack = { saddle: 'saddle_tessa', bridle: 'bridle_tessa', pad: 'pad_tessa', breast: 'breast_tessa', wraps: null, mask: null };
+const horse = new Horse(ctx, data);
+sun.target = horse.rig.root;
+
+const dt = 1 / 60;
+const input = (g) => ({ forward: 1, turn: 0, gait: Math.min(g, 3), sprint: g === 4 });
+for (let g = 1; g <= ROWS; g++) {
+  horse.speed = 0; horse.phase = 0;
+  for (let i = 0; i < 150; i++) { horse.setPosition(0, 0, 0); horse.drive(dt, input(g)); }
+  for (let c = 0; c < COLS; c++) {
+    for (let i = 0; i < 8; i++) { horse.setPosition(0, 0, 0); horse.drive(dt, input(g)); }
+    horse.setPosition(0, 0, 0);
+    ground.position.y = horse.pos.y;
+    sun.position.set(4, horse.pos.y + 6, -3);
+    cam.position.set(6.2, horse.pos.y + 1.2, 0.3);
+    cam.lookAt(0, horse.pos.y + 1.05, 0.25);
+    const x = c * CW, y = (ROWS - 1 - (g - 1)) * CH;
+    r.setViewport(x, y, CW, CH); r.setScissor(x, y, CW, CH);
+    r.render(scene, cam);
+  }
+}
+window.DONE = true;
+</script>
+</body>
+</html>

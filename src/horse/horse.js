@@ -489,7 +489,7 @@ export class Horse {
     const grazing = m && (m.type === 'graze' || m.type === 'drink');
     this.headDown = damp(this.headDown, grazing ? 1 : 0, 2.5, dt);
     let neckX = rig.dims.neckTilt;
-    let headX = 1.5;
+    let headX = rig.dims.headRest;
     if (moving) {
       if (ag === 1) neckX += Math.sin(ph * 2 + 1) * 0.04;
       if (ag === 3) neckX += Math.sin(ph + 2) * 0.08;
@@ -513,7 +513,7 @@ export class Horse {
       const s = i === 0 ? -1 : 1;
       const tgt = earsBack ? -0.9 : (moving && this.rider ? 0.25 : this.earTarget?.[i] || 0);
       e.userData.a = damp(e.userData.a || 0, tgt, 6, dt);
-      e.rotation.x = 0.85 + e.userData.a;
+      e.rotation.x = rig.dims.earRest + e.userData.a;
       e.rotation.z = s * 0.3;
     });
 

@@ -196,9 +196,18 @@ function build(P, cell) {
     for (let x = 0; x <= 0.3; x += 0.003) if (inside([x, y, czv])) rx = x;
     headSection.push({ t, y, rx, rz: (zmax - zmin) / 2, cz: czv });
   }
-  const eyeY = d.headLen * 0.24;
+  const [eyeY, eyeZ] = d.eye;
   let ex = 0;
-  for (let x = 0; x <= 0.3; x += 0.002) if (inside([x, eyeY, -0.03])) ex = x;
+  for (let x = 0; x <= 0.3; x += 0.002) if (inside([x, eyeY, eyeZ])) ex = x;
+  // crest line in neck space (mane roots)
+  const neckM = prep.world[prep.index.neck];
+  const crest = [];
+  for (let s = 0; s <= 20; s++) {
+    const y = -0.06 + (s / 20) * (d.neckLen + 0.08);
+    let zc = 0;
+    for (let z = -0.7; z <= 0.1; z += 0.003) { const w = apply(neckM, [0, y, z]); if (F(w[0], w[1], w[2]) < 0) { zc = z; break; } }
+    crest.push(+zc.toFixed(4));
+  }
   const backTop = [];
   const z0 = -d.zLen * 1.05, z1 = d.zLen * 1.05, nzb = 40;
   for (let s = 0; s <= nzb; s++) {
@@ -209,7 +218,7 @@ function build(P, cell) {
   }
   return {
     verts, normals, tris, ao, part, skinIndex, skinWeight, evals,
-    meta: { headSection, eye: [ex - 0.012, eyeY, -0.03], backTop, backZ: [z0, z1], cell },
+    meta: { headSection, eye: [ex - 0.012, eyeY, eyeZ], crest, crestY: [-0.06, d.neckLen + 0.02], backTop, backZ: [z0, z1], cell },
   };
 }
 
@@ -227,8 +236,10 @@ function write(file, r) {
   writeFileSync(file, Buffer.concat(parts));
 }
 
+// node tools/build-horses.mjs [suffix] [archetype]
 for (const [key, P] of Object.entries(ARCHETYPES)) {
   const only = process.argv[2];
+  if (process.argv[3] && process.argv[3] !== key) continue;
   for (const [suffix, cell] of [['', 0.0135], ['-mid', 0.021], ['-lo', 0.032]]) {
     if (only && only !== suffix) continue;
     const t0 = Date.now();
