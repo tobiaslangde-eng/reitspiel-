@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Reiterin-Ansicht</title>
+<style>html, body { margin: 0; background: #c9d3dc; } canvas { display: block; }</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Dev tool: renders the rider from several cameras.
+//   tools/rider-lab.html?mode=shape            raw skinned body, normal material, rest pose
+//   tools/rider-lab.html?mode=rider&pose=ride  the real Rider class (pose: stand | walk | ride | lasso | crouch)
+import * as THREE from 'three';
+import * as DATA from './src/player/rider-data.js';
+import { parseMesh, buildSkeleton, mirrorGeometry } from './src/player/meshdata.js';
+
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') || 'shape';
+const W = +(q.get('w') || 1600), H = +(q.get('h') || 900);
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+r.setSize(W, H);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.shadowMap.enabled = true;
+r.setScissorTest(true);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc9d3dc);
+scene.add(new THREE.HemisphereLight(0xdfeaff, 0x5a4a38, 1.1));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
+sun.position.set(3, 5, 4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = sun.shadow.camera.bottom = -2;
+sun.shadow.camera.right = sun.shadow.camera.top = 2;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c9a6c }));
+ground.receiveShadow = true;
+scene.add(ground);
+
+let views;
+let lookY = 0.95;
+if (mode === 'shape') {
+  const sk = buildSkeleton();
+  scene.add(sk.root);
+  sk.byName.pelvis.position.y = 0.93;
+  const mat = q.get('mat') === 'normal' ? new THREE.MeshNormalMaterial() : new THREE.MeshStandardMaterial({ color: 0xd9ab90, roughness: 0.62 });
+  for (const [data, flip] of [[DATA.BODY, false], [DATA.HEAD, false], [DATA.HAND, false], [DATA.HAND, true]]) {
+    if (!data) continue;
+    const { geometry } = parseMesh(data);
+    const m = new THREE.SkinnedMesh(flip ? mirrorGeometry(geometry) : geometry, mat);
+    m.frustumCulled = false;
+    m.bind(sk.skeleton, new THREE.Matrix4());
+    sk.root.add(m);
+  }
+  const pose = q.get('pose');
+  if (pose === 'ride') {
+    const B = sk.byName;
+    sk.byName.pelvis.position.y = 0.1;
+    for (const s of ['L', 'R']) {
+      B['hip' + s].rotation.x = -1.25; B['knee' + s].rotation.x = 1.45; B['foot' + s].rotation.x = -0.25;
+      B['arm' + s].rotation.x = -0.6; B['fore' + s].rotation.x = -0.9;
+    }
+    B.spine.rotation.x = 0.1;
+  }
+  views = [
+    { x: 0, y: 0, w: 400, h: 900, pos: [0, 1.0, 4.2], at: [0, 0.95, 0], fov: 32 },
+    { x: 400, y: 0, w: 400, h: 900, pos: [4.2, 1.0, 0], at: [0, 0.95, 0], fov: 32 },
+    { x: 800, y: 0, w: 400, h: 900, pos: [0, 1.0, -4.2], at: [0, 0.95, 0], fov: 32 },
+    { x: 1200, y: 0, w: 400, h: 900, pos: [3, 1.4, 3], at: [0, 0.95, 0], fov: 32 },
+  ];
+  if (pose === 'ride') views.forEach((v) => { v.at[1] = 0.1; v.pos[1] = 0.5; });
+  if (q.get('focus')) {
+    // close-ups: focus=x,y,z (world, pelvis at 0.93)  dist=metres  fov=deg
+    const f = q.get('focus').split(',').map(Number);
+    const d = +(q.get('dist') || 0.7), fov = +(q.get('fov') || 30);
+    const dirs = [[0, 0.05, 1], [1, 0.05, 0], [0.7, 0.2, 0.7], [-0.7, 0.2, 0.7]];
+    views = dirs.map((v, i) => ({ x: (i % 2) * 800, y: Math.floor(i / 2) * 450, w: 800, h: 450, pos: [f[0] + v[0] * d, f[1] + v[1] * d, f[2] + v[2] * d], at: f, fov }));
+  }
+}
+async function buildRiderScene() {
+  // the real Rider class, optionally on the real Horse class
+  const { Rider } = await import('./src/player/rider.js');
+  const outfit = { hat: q.get('hat') || 'hat_brown', shirt: q.get('shirt') || 'shirt_plaid_red', vest: q.get('vest') || 'vest_none', pants: q.get('pants') || 'pants_jeans', chaps: q.get('chaps') || 'chaps_none', boots: q.get('boots') || 'boots_brown', scarf: q.get('scarf') || 'scarf_red', hair: q.get('hair') || 'hair_brown' };
+  const rider = new Rider(scene, outfit);
+  const pose = q.get('pose') || 'stand';
+  const dt = 1 / 60;
+  if (pose === 'ride' || pose === 'walkride' || pose === 'gallop' || pose === 'lasso') {
+    const { randomHorse } = await import('./src/horse/breeds.js');
+    const { loadHorseAssets } = await import('./src/horse/horseModel.js');
+    const { Horse } = await import('./src/horse/horse.js');
+    const { Tack } = await import('./src/horse/tack.js');
+    await loadHorseAssets(['', '-lo']);
+    const ctx = { scene, camera: new THREE.PerspectiveCamera(), weather: null, lodDistance: 999, colliders: { resolve: () => null } };
+    ctx.tack = new Tack(ctx);
+    const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'brauner', markings: { socks: [0, 0, 0, 0], blaze: 1 } });
+    data.tack = { saddle: q.get('saddle') === 'none' ? null : 'saddle_tessa', bridle: 'bridle_tessa', pad: 'pad_tessa', breast: 'breast_tessa', wraps: null, mask: null };
+    const horse = new Horse(ctx, data);
+    horse.setPosition(0, 0, 0);
+    const gait = pose === 'gallop' ? 3 : pose === 'walkride' ? 1 : 0;
+    const frames = +(q.get('frames') || 90);
+    for (let i = 0; i < frames; i++) {
+      horse.setPosition(0, 0, 0);
+      horse.drive(dt, gait ? { forward: 1, turn: 0, gait } : { forward: 0, turn: 0, gait: 1 });
+      const seat = horse.seat || horse.rig.saddleMount;
+      seat.updateWorldMatrix(true, false);
+      seat.getWorldPosition(rider.root.position);
+      seat.getWorldQuaternion(rider.root.quaternion);
+      rider.update(dt, { mode: 'ride', gait: horse.animGait, phase: horse.phase, turn: 0, speed: horse.speed, bulk: horse.rig.dims.bulk, saddle: !!data.tack.saddle, lasso: pose === 'lasso' });
+      ctx.tack.updateReins(horse, rider.handWorld(0));
+    }
+    const Y0 = horse.pos.y; // the real terrain is not at 0
+    ground.position.y = Y0;
+    sun.position.set(3, Y0 + 5, 4); sun.target.position.set(0, Y0 + 1, 0); scene.add(sun.target);
+    const cy = 1.4;
+    return [
+      { x: 0, y: 0, w: 800, h: 450, pos: [6, cy, 0.3], at: [0, cy - 0.15, 0.2], fov: 26 },
+      { x: 800, y: 0, w: 800, h: 450, pos: [2.6, cy + 0.2, 3.2], at: [0, cy - 0.2, 0.1], fov: 30 },
+      { x: 0, y: 450, w: 800, h: 450, pos: [-2.5, cy + 0.2, -3.2], at: [0, cy - 0.2, -0.1], fov: 30 },
+      { x: 800, y: 450, w: 800, h: 450, pos: [1.9, 2.15, 1.5], at: [0, 1.85, 0.2], fov: 28 },
+    ].map((v) => ({ ...v, pos: [v.pos[0], v.pos[1] + Y0, v.pos[2]], at: [v.at[0], v.at[1] + Y0, v.at[2]] }));
+  }
+  // standing / walking / actions on foot
+  if (pose === 'walk') { for (let i = 0; i < 120; i++) rider.update(dt, { mode: 'foot', speed: 1.9 }); }
+  else if (pose === 'run') { for (let i = 0; i < 120; i++) rider.update(dt, { mode: 'foot', speed: 5.2 }); }
+  else if (pose === 'crouch') { for (let i = 0; i < 60; i++) rider.update(dt, { mode: 'foot', speed: 0, crouch: true }); }
+  else {
+    if (['whistle', 'brush', 'feed', 'pat', 'hoof', 'dig', 'lasso', 'wave'].includes(pose)) rider.play(pose, 100);
+    for (let i = 0; i < 90; i++) rider.update(dt, { mode: 'foot', speed: 0, look: 0 });
+  }
+  const f = [0, 1.0, 0];
+  return [
+    { x: 0, y: 0, w: 400, h: 900, pos: [0, 1.0, 4.2], at: f, fov: 32 },
+    { x: 400, y: 0, w: 400, h: 900, pos: [4.2, 1.0, 0], at: f, fov: 32 },
+    { x: 800, y: 0, w: 400, h: 900, pos: [0, 1.0, -4.2], at: f, fov: 32 },
+    { x: 1200, y: 0, w: 400, h: 900, pos: [3, 1.4, 3], at: f, fov: 32 },
+  ];
+}
+window.__ready = (async () => {
+  if (mode === 'rider') views = await buildRiderScene();
+  if (mode === 'rider' && q.get('focus')) {
+    const f = q.get('focus').split(',').map(Number);
+    const d = +(q.get('dist') || 0.7), fov = +(q.get('fov') || 30);
+    const dirs = [[0, 0.05, 1], [1, 0.05, 0], [0.7, 0.2, 0.7], [-0.7, 0.2, 0.7]];
+    views = dirs.map((v, i) => ({ x: (i % 2) * 800, y: Math.floor(i / 2) * 450, w: 800, h: 450, pos: [f[0] + v[0] * d, f[1] + v[1] * d, f[2] + v[2] * d], at: f, fov }));
+  }
+  const cam = new THREE.PerspectiveCamera();
+  for (const v of views) {
+    cam.fov = v.fov; cam.aspect = v.w / v.h; cam.near = 0.02; cam.far = 80; cam.updateProjectionMatrix();
+    cam.position.set(...v.pos); cam.lookAt(...v.at);
+    r.setViewport(v.x, H - v.y - v.h, v.w, v.h);
+    r.setScissor(v.x, H - v.y - v.h, v.w, v.h);
+    r.render(scene, cam);
+  }
+  window.DONE = true;
+})().catch((e) => { console.error(e); window.DONE = true; });
+void lookY;
+</script>
+</body>
+</html>
