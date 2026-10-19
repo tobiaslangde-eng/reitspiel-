@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildHorseModel, disposeHorseModel } from './horseModel.js';
+import { FOAL_GROWTH } from './anatomy.js';
 import { clamp, lerp, damp, wrapAngle, rand, smoothstep } from '../core/utils.js';
 import { heightAt, waterDepthAt, PLAY_LIMIT } from '../world/terrain.js';
 
@@ -66,7 +67,15 @@ export class Horse {
 
   applyScale() {
     const g = this.data.growth ?? 1;
-    this.scale = this.rig.dims.size * (0.55 + 0.45 * g);
+    const foal = g < FOAL_GROWTH;
+    // growing past the foal stage swaps in the adult proportions
+    if (foal !== this.rig.isFoal && this.rig.arch !== undefined && !this.rebuilding) {
+      this.rebuilding = true;
+      this.build();
+      this.rebuilding = false;
+      return;
+    }
+    this.scale = this.rig.dims.size * (this.rig.isFoal ? 0.62 + 0.38 * (g / FOAL_GROWTH) : 0.55 + 0.45 * g);
     this.rig.root.scale.setScalar(this.scale);
   }
 
@@ -532,15 +541,8 @@ export class Horse {
       s.g.rotation.z = damp(s.g.rotation.z, yaw, 8, dt);
     });
 
-    // --- mane ---
-    const wind = this.game.weather ? this.game.weather.cur.wind : 0.3;
-    rig.mane.forEach((l, i) => {
-      if (l.rest > 2) { return; } // fjord standing mane
-      const flap = Math.sin(this.time * (8 + flow * 10) + i * 0.8) * (0.05 + flow * 0.22 + wind * 0.05);
-      l.g.rotation.x = l.rest - flow * 0.5 + flap * 0.5 - this.headDown * 0.9;
-      l.g.rotation.z = -(0.7 + flow * 0.5) + flap;
-    });
-    rig.forelock.rotation.x = Math.PI + 0.25 - flow * 0.5 + Math.sin(this.time * 9) * flow * 0.15;
+    // --- mane, forelock, tail strands ---
+    rig.hair.update(this, dt);
   }
 
   // ---------------------------------------------------------------------

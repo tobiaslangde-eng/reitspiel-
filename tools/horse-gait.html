@@ -13,30 +13,34 @@
 // Dev tool: drives the real Horse class through every gait and renders a contact sheet (side view).
 // tools/horse-gait.html?breed=quarter&coat=fuchs&rider=0  (serve from the repo root)
 import * as THREE from 'three';
-import { randomHorse } from './src/horse/breeds.js';
+import { randomHorse, proportions } from './src/horse/breeds.js';
 import { loadHorseAssets } from './src/horse/horseModel.js';
+import { archetypeFor } from './src/horse/anatomy.js';
+import { Sky } from './src/world/sky.js';
 import { Horse } from './src/horse/horse.js';
 import { Tack } from './src/horse/tack.js';
 
 const q = new URLSearchParams(location.search);
-await loadHorseAssets(['', '-lo']);
+const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'fuchs', markings: { socks: [0, 0, 0, 0], blaze: 0 } });
+await loadHorseAssets(['', '-lo'], null, [archetypeFor(proportions(data))]);
 const COLS = 3, ROWS = 4, CW = 420, CH = 260;
+if (q.get('mode') === 'still') { /* 2x2 canvas below */ }
 const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
 r.setSize(CW * COLS, CH * ROWS);
+const STILL = q.get('mode') === 'still';
 r.toneMapping = THREE.ACESFilmicToneMapping;
 r.outputColorSpace = THREE.SRGBColorSpace;
 r.shadowMap.enabled = true;
+r.shadowMap.type = THREE.PCFSoftShadowMap;
 r.setScissorTest(true);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc9d3dc);
-scene.add(new THREE.HemisphereLight(0xdfeaff, 0x5a4a38, 1.2));
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
-sun.position.set(4, 6, -3);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.left = sun.shadow.camera.bottom = -4;
-sun.shadow.camera.right = sun.shadow.camera.top = 4;
-scene.add(sun);
+scene.background = new THREE.Color(0xb9cbe0);
+const sky = new Sky(scene);
+sky.setShadowRange(6);
+sky.sun.shadow.mapSize.set(2048, 2048);
+sky.update(+(q.get('hour') || 15.8), 1, { cloud: 0.1, storm: 0, dust: 0, fog: 0, rain: 0, snow: 0, wind: 0.3 }, new THREE.Vector3(), 0, 0);
+scene.environment = new THREE.PMREMGenerator(r).fromScene(sky.envScene, 0, 0.1, 500).texture;
+scene.environmentIntensity = 0.7;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c9a6c }));
 ground.receiveShadow = true;
 scene.add(ground);
@@ -44,11 +48,28 @@ scene.add(ground);
 const cam = new THREE.PerspectiveCamera(30, CW / CH, 0.1, 100);
 const ctx = { scene, camera: cam, weather: null, lodDistance: 999, colliders: { resolve: () => null } };
 ctx.tack = new Tack(ctx);
-const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'fuchs', markings: { socks: [0, 0, 0, 0], blaze: 0 } });
 data.tack = { saddle: 'saddle_tessa', bridle: 'bridle_tessa', pad: 'pad_tessa', breast: 'breast_tessa', wraps: null, mask: null };
 const horse = new Horse(ctx, data);
-sun.target = horse.rig.root;
 
+if (q.get('mode') === 'still') {
+  // standing horse with tack from four angles (checks saddle, bridle and head details)
+  const views = [
+    [[4.2, 1.5, 3.2], [0, 1.05, 0.2], 30], [[1.6, 1.9, 2.3], [0, 1.6, 1.15], 20],
+    [[-2.8, 1.8, 1.2], [0, 1.35, 0.4], 30], [[-3.2, 1.6, -3.4], [0, 1.1, -0.2], 32],
+  ];
+  horse.setPosition(0, 0, 0);
+  for (let i = 0; i < 30; i++) horse.drive(dt0(), { forward: 0, turn: 0, gait: 1 });
+  views.forEach(([p, a, fov], i) => {
+    cam.fov = fov; cam.aspect = CW / CH; cam.updateProjectionMatrix();
+    cam.position.set(p[0], p[1] + horse.pos.y, p[2]); cam.lookAt(a[0], a[1] + horse.pos.y, a[2]);
+    sky.mesh.position.copy(cam.position);
+    const x = (i % 2) * CW * 1.5, y = Math.floor(i / 2) * CH * 1.5;
+    r.setViewport(x, y, CW * 1.5, CH * 1.5); r.setScissor(x, y, CW * 1.5, CH * 1.5);
+    r.render(scene, cam);
+  });
+  window.DONE = true;
+}
+function dt0() { return 1 / 60; }
 const dt = 1 / 60;
 const input = (g) => ({ forward: 1, turn: 0, gait: Math.min(g, 3), sprint: g === 4 });
 for (let g = 1; g <= ROWS; g++) {
@@ -58,9 +79,9 @@ for (let g = 1; g <= ROWS; g++) {
     for (let i = 0; i < 8; i++) { horse.setPosition(0, 0, 0); horse.drive(dt, input(g)); }
     horse.setPosition(0, 0, 0);
     ground.position.y = horse.pos.y;
-    sun.position.set(4, horse.pos.y + 6, -3);
     cam.position.set(6.2, horse.pos.y + 1.2, 0.3);
     cam.lookAt(0, horse.pos.y + 1.05, 0.25);
+    sky.mesh.position.copy(cam.position);
     const x = c * CW, y = (ROWS - 1 - (g - 1)) * CH;
     r.setViewport(x, y, CW, CH); r.setScissor(x, y, CW, CH);
     r.render(scene, cam);

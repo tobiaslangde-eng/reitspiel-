@@ -6,7 +6,7 @@ export const COATS = {
   fuchs: { name: 'Fuchs', base: [0.55, 0.24, 0.1], mane: [0.48, 0.2, 0.08], point: [0.5, 0.22, 0.09], pattern: 0 },
   brauner: { name: 'Brauner', base: [0.36, 0.19, 0.09], mane: [0.04, 0.03, 0.03], point: [0.04, 0.03, 0.03], pattern: 0, points: true },
   palomino: { name: 'Palomino', base: [0.85, 0.62, 0.3], mane: [0.96, 0.93, 0.85], point: [0.8, 0.58, 0.28], pattern: 0 },
-  falbe: { name: 'Falbe', base: [0.74, 0.6, 0.38], mane: [0.08, 0.06, 0.05], point: [0.1, 0.07, 0.05], pattern: 0, points: true, dorsal: true },
+  falbe: { name: 'Falbe', base: [0.78, 0.54, 0.28], mane: [0.08, 0.06, 0.05], point: [0.1, 0.07, 0.05], pattern: 0, points: true, dorsal: true },
   schecke: { name: 'Schecke', base: [0.36, 0.19, 0.09], mane: [0.2, 0.12, 0.08], point: [0.36, 0.19, 0.09], pattern: 2, patternColor: [0.95, 0.94, 0.92] },
   rappschecke: { name: 'Rappschecke', base: [0.06, 0.05, 0.05], mane: [0.85, 0.85, 0.82], point: [0.06, 0.05, 0.05], pattern: 2, patternColor: [0.95, 0.94, 0.92] },
   tigerschecke: { name: 'Tigerschecke', base: [0.93, 0.92, 0.88], mane: [0.3, 0.26, 0.24], point: [0.82, 0.8, 0.76], pattern: 3, patternColor: [0.1, 0.08, 0.07] },

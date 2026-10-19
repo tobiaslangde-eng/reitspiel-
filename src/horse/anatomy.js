@@ -9,12 +9,16 @@ export const ARCHETYPES = {
   stock: { bodyLen: 0.97, bulk: 1.05, legLen: 1.0, legThick: 1.06, neckLen: 0.95, headLen: 0.95 },
   heavy: { bodyLen: 1.03, bulk: 1.27, legLen: 0.95, legThick: 1.33, neckLen: 1.0, headLen: 1.07 },
   pony: { bodyLen: 1.0, bulk: 1.2, legLen: 0.86, legThick: 1.2, neckLen: 0.9, headLen: 1.03 },
+  // foals: small body, long thin legs, big head (used while growth < FOAL_GROWTH)
+  foal: { bodyLen: 0.74, bulk: 0.74, legLen: 1.14, legThick: 0.74, neckLen: 0.78, headLen: 1.12 },
 };
+export const FOAL_GROWTH = 0.85;
 export const ARCHETYPE_KEYS = Object.keys(ARCHETYPES);
 
 export function archetypeFor(P) {
   let best = 'warm', bd = 1e9;
   for (const [k, a] of Object.entries(ARCHETYPES)) {
+    if (k === 'foal') continue;
     const d = ((P.bulk - a.bulk) / 0.15) ** 2 + ((P.legLen - a.legLen) / 0.08) ** 2 + ((P.legThick - a.legThick) / 0.2) ** 2;
     if (d < bd) { bd = d; best = k; }
   }
@@ -134,7 +138,7 @@ export function boneWorldMatrices(bones) {
 
 // ---------------------------------------------------------------------------
 // Shape primitives (signed distance), defined in bone-local space.
-// part: 0 body, 1 neck, 2 head, 3-6 legs (FL, FR, HL, HR), 7-10 hooves
+// part: 0 body, 1 neck, 2 head, 3-6 legs (FL, FR, HL, HR), 7-10 hooves, 11 ears
 // ---------------------------------------------------------------------------
 export function primitives(P) {
   const d = dimensions(P);
@@ -152,6 +156,8 @@ export function primitives(P) {
     E('body', 0, [s * 0.08 * b, C - 0.15, 0.97 * Z], [0.09 * b, 0.14, 0.1], 0.08); // chest muscles
     E('body', 0, [s * 0.125 * b, C + 0.07, 0.68 * Z], [0.085 * b, 0.3, 0.13], 0.09, { rot: [-0.75, 0, 0] }); // shoulder blade
     E('body', 0, [s * 0.145 * b, C - 0.21, 0.58 * Z], [0.07 * b, 0.09, 0.09], 0.06); // elbow
+    E('body', 0, [s * 0.152 * b, C - 0.06, 0.78 * Z], [0.06 * b, 0.12, 0.085], 0.045, { rot: [-0.5, 0, 0] }); // point of the shoulder
+    E('body', 0, [s * 0.158 * b, C - 0.07, 0.56 * Z], [0.06 * b, 0.13, 0.085], 0.045, { rot: [0.25, 0, 0] }); // triceps
   }
   E('body', 0, [0, C + 0.25 * b, 0.4 * Z], [0.07 * b, 0.09, 0.22 * Z], 0.09); // withers
   E('body', 0, [0, C + 0.17 * b, -0.15 * Z], [0.2 * b, 0.13 * b, 0.5 * Z], 0.1); // back and loin
@@ -160,36 +166,41 @@ export function primitives(P) {
     E('body', 0, [s * 0.12 * b, C + 0.02, -0.72 * Z], [0.165 * b, 0.3 * b, 0.27 * Z], 0.1); // hindquarters
     E('body', 0, [s * 0.1 * b, C - 0.12, -0.88 * Z], [0.12 * b, 0.24 * b, 0.13], 0.09); // buttock
     E('body', 0, [s * 0.165 * b, C - 0.2 * b, -0.5 * Z], [0.08 * b, 0.13, 0.12], 0.07); // stifle
+    E('body', 0, [s * 0.185 * b, C - 0.08, -0.74 * Z], [0.06 * b, 0.2, 0.13], 0.045, { rot: [0.15, 0, 0] }); // biceps femoris
+    E('body', 0, [s * 0.12 * b, C + 0.17, -0.78 * Z], [0.09 * b, 0.1, 0.14], 0.05); // gluteals
   }
   // --- neck (local +y along the neck, crest on -z, throat on +z)
   RC('neck', 1, [0, -0.12, 0.05], 0.28 * (0.9 + 0.1 * b), [0, N * 0.97, 0.02], 0.11, 0.14, { scale: [0.6 * sb, 1, 1] });
   E('neck', 1, [0, N * 0.48, -0.115], [0.06 * sb, N * 0.5, 0.075], 0.1); // crest
   E('neck', 1, [0, N * 0.93, 0.06], [0.07, 0.08, 0.08], 0.07); // throat latch
   E('neck', 1, [0, 0.02, 0.1], [0.19 * b, 0.2, 0.2], 0.12); // base into the shoulders
+  for (const s of [-1, 1]) prims.push({ type: 'sub', bone: 'neck', part: 1, c: [s * 0.118 * sb, N * 0.5, 0.12], rr: [0.02, N * 0.3, 0.035], k: 0.1, rot: [0.1, 0, 0] }); // jugular groove (shallow)
   // --- head (local +y toward the muzzle, face on -z, jaw on +z)
   const ey = d.eye[0];
+  const SUB = (bone, part, c, rr, k, rot) => prims.push({ type: 'sub', bone, part, c, rr, k, rot });
   E('head', 2, [0, 0.05, -0.02], [0.095, 0.1, 0.1], 0.06); // poll
   E('head', 2, [0, ey - 0.02, -0.05], [0.1, 0.13, 0.07], 0.06); // forehead
   for (const s of [-1, 1]) {
     E('head', 2, [s * 0.058, ey - 0.03, 0.075], [0.052, 0.13, 0.12], 0.06); // jowl
-    E('head', 2, [s * 0.075, ey - 0.04, -0.06], [0.03, 0.04, 0.03], 0.03); // brow above the eye
+    E('head', 2, [s * 0.09, ey - 0.03, -0.06], [0.026, 0.028, 0.03], 0.03); // brow ridge above the eye
     E('head', 2, [s * 0.07, ey + 0.09, 0.0], [0.028, 0.08, 0.032], 0.04); // facial crest
   }
   RC('head', 2, [0, ey - 0.06, -0.03], 0.095, [0, L * 0.82, -0.005], 0.06, 0.06, { scale: [0.92, 1, 1] }); // face
   RC('head', 2, [0, ey + 0.04, 0.06], 0.07, [0, L * 0.84, 0.035], 0.056, 0.06, { scale: [0.85, 1, 1] }); // lower jaw
   E('head', 2, [0, L * 0.9, 0.005], [0.064, 0.08, 0.078], 0.05); // muzzle
-  for (const s of [-1, 1]) E('head', 2, [s * 0.04, L * 0.93, -0.035], [0.034, 0.05, 0.034], 0.03); // nostril wings
+  for (const s of [-1, 1]) E('head', 2, [s * 0.046, L * 0.935, -0.04], [0.026, 0.034, 0.024], 0.025); // nostril wings
   E('head', 2, [0, L * 0.965, 0.035], [0.058, 0.04, 0.06], 0.03); // lips
   E('head', 2, [0, L * 0.88, 0.085], [0.04, 0.055, 0.035], 0.03); // chin
-  for (const s of [-1, 1]) { // comma-shaped nostrils
-    prims.push({ type: 'sub', bone: 'head', part: 2, c: [s * 0.046, L * 0.965, -0.045], r: 0.016, k: 0.014 });
-    prims.push({ type: 'sub', bone: 'head', part: 2, c: [s * 0.054, L * 0.945, -0.03], r: 0.012, k: 0.012 });
+  for (const s of [-1, 1]) {
+    SUB('head', 2, [s * 0.114, ey, -0.035], [0.017, 0.034, 0.037], 0.02);                // eye socket
+    SUB('head', 2, [s * 0.047, L * 0.968, -0.047], [0.013, 0.016, 0.013], 0.014);        // nostril
+    SUB('head', 2, [s * 0.056, L * 0.945, -0.034], [0.009, 0.013, 0.01], 0.012);           // nostril, lower lobe
   }
-  prims.push({ type: 'sub', bone: 'head', part: 2, c: [0, L * 1.0, 0.035], r: 0.012, k: 0.01 }); // mouth corner
   // --- ears (tip along local -y)
   for (const e of ['earL', 'earR']) {
-    RC(e, 2, [0, 0, 0], 0.034, [0, -0.15, 0], 0.008, 0.025, { scale: [1.1, 1, 0.55] });
-    E(e, 2, [0, -0.06, 0], [0.036, 0.06, 0.02], 0.02);
+    RC(e, 11, [0, 0, 0], 0.034, [0, -0.15, 0], 0.008, 0.025, { scale: [1.1, 1, 0.55] });
+    E(e, 11, [0, -0.06, 0], [0.036, 0.06, 0.02], 0.02);
+    SUB(e, 11, [0, -0.068, -0.027], [0.026, 0.07, 0.017], 0.02);                         // hollow of the ear
   }
   // --- legs (front of the leg is local +z)
   ['FL', 'FR', 'HL', 'HR'].forEach((n, i) => {
@@ -280,7 +291,7 @@ export function preparePrimitives(P) {
     // conservative bounding sphere in root space for culling
     let center, radius;
     if (p.type === 'ell') { center = apply(m, [0, 0, 0]); radius = Math.max(...p.r); }
-    else if (p.type === 'sub') { center = apply(m, [0, 0, 0]); radius = p.r; }
+    else if (p.type === 'sub') { center = apply(m, [0, 0, 0]); radius = p.rr ? Math.max(...p.rr) : p.r; }
     else {
       const wa = apply(world[bi], p.a), wb = apply(world[bi], p.b);
       center = [(wa[0] + wb[0]) / 2, (wa[1] + wb[1]) / 2, (wa[2] + wb[2]) / 2];
@@ -296,7 +307,7 @@ export function evalPrim(p, wp) {
   const s = p.scale;
   let d;
   if (p.type === 'ell') d = sdEllipsoid(q[0], q[1], q[2], p.r[0], p.r[1], p.r[2]);
-  else if (p.type === 'sub') d = Math.hypot(q[0], q[1], q[2]) - p.r;
+  else if (p.type === 'sub') d = p.rr ? sdEllipsoid(q[0], q[1], q[2], p.rr[0], p.rr[1], p.rr[2]) : Math.hypot(q[0], q[1], q[2]) - p.r;
   else if (s) {
     const qs = [q[0] / s[0], q[1] / s[1], q[2] / s[2]];
     const as = [p.a[0] / s[0], p.a[1] / s[1], p.a[2] / s[2]];

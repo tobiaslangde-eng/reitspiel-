@@ -74,7 +74,7 @@ Die Pferdemodelle werden mit `node tools/build-horses.mjs` neu berechnet.
 - **Atmosphäre:** Tag- und Nachtwechsel mit Sonnenuntergängen, Sternenhimmel, Mond und Lagerfeuer. Als Wetter gibt es Sonne, Wolken, Regen, Gewitter mit Blitzen, Morgennebel, Staubstürme und Schnee. Die vier Jahreszeiten bringen Blumenwiesen, buntes Laub und Schnee. Glühwürmchen und fallende Blätter gibt es auch.
 - **Pferde:** 21 Rassen, darunter Quarter Horse, Paint, Appaloosa, Mustang, Araber, Friese, Andalusier, Lusitano, Haflinger, Tinker, Isländer, Fjordpferd, Knabstrupper, Akhal-Teke, Vollblut, Trakehner, Hannoveraner, Morgan, Shire, Noriker und Shetty. Jede Rasse hat ihren eigenen Körperbau und eigene Werte für Tempo, Ausdauer und Wendigkeit.
 - **Fellfarben:** Rappe, Schimmel (mit Apfelung), Fuchs, Brauner, Palomino, Falbe (mit Aalstrich), Schecke, Tigerschecke, Blanket-Appaloosa und Isabell. Dazu kommen Abzeichen wie Blesse und weiße Socken.
-- **Mähne und Schweif** wehen im Wind und beim Galopp. Fesselbehang gibt es bei Friese, Tinker und Shire.
+- **Haare:** Mähne, Stirnschopf, Schweif und Fesselbehang bestehen aus hunderten einzelnen Haarsträhnen und breiten Locken. Sie liegen am Hals an, wehen im Wind, strömen im Galopp nach hinten und fallen schwer nach unten, wenn das Pferd den Kopf senkt. Fesselbehang gibt es bei Friese, Tinker und Shire.
 - **Reiten:** Schritt, Trab, Galopp und Renngalopp mit Ausdauerleiste. Du kannst über Baumstämme und Zäune springen und Sliding Stop, Spin und Rückwärtsrichten reiten. Im Sand und Schnee bleiben Hufspuren, im Wasser spritzt es, und je nach Untergrund klingen die Hufschläge anders.
 - **Spezialsattel „Tessa“:** dunkelbraunes Leder mit Blumen-Punzierungen, Silber-Conchos, Türkissteinen und dem silbernen Schriftzug „Tessa“ hinten am Sattel. Dazu gehören ein Zaumzeug mit graviertem Namensschild sowie eine passende Satteldecke und ein passendes Brustgeschirr.
 - **Ausrüstung:** Sättel, Satteldecken, Zaumzeug, Brustgeschirre, Gamaschen, Fliegenmasken und Mähnenschleifen. Die Mähne lässt sich flechten, auch mit Schleifen, und der Schweif ebenfalls.
@@ -92,7 +92,9 @@ Die Pferdemodelle werden mit `node tools/build-horses.mjs` neu berechnet.
 
 - `src/world/`: Terrain mit Höhenfunktion, Himmel-Shader, Wasser, Wetter, Vegetation, Gebäude, Stadt und Orte
 - `src/horse/`: Rassen, Anatomie (Skelett und Formen), Pferdemodell mit Fell-Shader, Animation und Physik sowie die Ausrüstung
-- `tools/build-horses.mjs`: formt die Pferde aus einem Distanzfeld mit über 60 anatomischen Formen (Muskeln, Gelenke, Kopf). Daraus entstehen glatte Skinned Meshes mit eingebackener Umgebungsverdeckung in drei Detailstufen (`assets/horses/`).
+- `tools/build-horses.mjs`: formt die Pferde aus einem Distanzfeld mit über 70 anatomischen Formen (Muskeln, Gelenke, Augenhöhle, Nüstern, Ohren). Daraus entstehen glatte Skinned Meshes mit eingebackener Umgebungsverdeckung und Muskelrelief (Cavity) in drei Detailstufen (`assets/horses/`).
+- `src/horse/hair.js`, `src/horse/eyes.js`: Haarsträhnen mit Shader-Animation sowie Augen mit Iris, Lidern und Wimpern.
+- `tools/horse-viewer.html`, `tools/horse-gait.html`: Entwicklungsansichten für Anatomie, Haare und Gangarten (über einen lokalen Webserver öffnen).
 - `sw.js`, `manifest.webmanifest`, `icons/`: Web-App für Handys (offline, Vollbild, Querformat)
 - `src/player/`: Reiterin, Steuerung und Kamera
 - `src/game/`: Spielstand, Shop-Katalog, Aufträge, Rodeo, Lasso, Pflege, Wildpferde und Zucht, Errungenschaften, Fotomodus

@@ -132,6 +132,7 @@ function build(P, cell) {
 
   // baked ambient occlusion + part + skin weights
   const ao = new Uint8Array(verts.length);
+  const cav = new Uint8Array(verts.length);
   const part = new Uint8Array(verts.length);
   const skinIndex = new Uint8Array(verts.length * 4);
   const skinWeight = new Uint8Array(verts.length * 4);
@@ -148,6 +149,14 @@ function build(P, cell) {
     // ground occlusion for low parts
     const ground = Math.max(0, 1 - p[1] / 0.35) * 0.25;
     ao[v] = Math.round(Math.max(0, Math.min(1, 1 - occ * 3.2 - ground)) * 255);
+    // cavity: small-radius curvature, 0.5 flat, <0.5 grooves, >0.5 ridges (drives muscle definition in the shader)
+    {
+      const r = 0.02;
+      const dOut = F(p[0] + n[0] * r, p[1] + n[1] * r, p[2] + n[2] * r);
+      const dIn = F(p[0] - n[0] * r, p[1] - n[1] * r, p[2] - n[2] * r);
+      const concave = Math.max(0, (r - dOut) / r), convex = Math.max(0, (r + dIn) / r);
+      cav[v] = Math.round(Math.max(0, Math.min(1, 0.5 + 0.5 * (convex - concave) * 2.2)) * 255);
+    }
 
     per.fill(1e9);
     for (let i = 0; i < prep.list.length; i++) if (prep.list[i].type !== 'sub') per[i] = evalPrim(prep.list[i], p);
@@ -208,6 +217,21 @@ function build(P, cell) {
     for (let z = -0.7; z <= 0.1; z += 0.003) { const w = apply(neckM, [0, y, z]); if (F(w[0], w[1], w[2]) < 0) { zc = z; break; } }
     crest.push(+zc.toFixed(4));
   }
+  // half-width of the neck/shoulder on a (y, z) grid in neck space: hair that lies on the neck follows it
+  const NG = { y0: -0.2, y1: d.neckLen + 0.05, z0: -0.5, z1: 0.5, ny: 26, nz: 28, hw: [] };
+  for (let iy = 0; iy < NG.ny; iy++) {
+    const y = NG.y0 + (NG.y1 - NG.y0) * (iy / (NG.ny - 1));
+    for (let iz = 0; iz < NG.nz; iz++) {
+      const z = NG.z0 + (NG.z1 - NG.z0) * (iz / (NG.nz - 1));
+      let hw = -1;
+      const w0 = apply(neckM, [0, y, z]);
+      if (F(w0[0], w0[1], w0[2]) < 0) {
+        hw = 0;
+        for (let x = 0.004; x <= 0.45; x += 0.004) { const w = apply(neckM, [x, y, z]); if (F(w[0], w[1], w[2]) < 0) hw = x; else break; }
+      }
+      NG.hw.push(Math.round(hw * 1000));
+    }
+  }
   const backTop = [];
   const z0 = -d.zLen * 1.05, z1 = d.zLen * 1.05, nzb = 40;
   for (let s = 0; s <= nzb; s++) {
@@ -217,8 +241,8 @@ function build(P, cell) {
     backTop.push(+top.toFixed(4));
   }
   return {
-    verts, normals, tris, ao, part, skinIndex, skinWeight, evals,
-    meta: { headSection, eye: [ex - 0.012, eyeY, eyeZ], crest, crestY: [-0.06, d.neckLen + 0.02], backTop, backZ: [z0, z1], cell },
+    verts, normals, tris, ao, cav, part, skinIndex, skinWeight, evals,
+    meta: { headSection, eye: [ex - 0.008, eyeY, eyeZ], crest, crestY: [-0.06, d.neckLen + 0.02], neckGrid: NG, backTop, backZ: [z0, z1], cell },
   };
 }
 
@@ -226,13 +250,13 @@ function write(file, r) {
   const n = r.verts.length;
   const big = n > 65535;
   const meta = Buffer.from(JSON.stringify(r.meta));
-  const header = new Uint32Array([0x31535248, n, r.tris.length, meta.length, big ? 1 : 0]);
+  const header = new Uint32Array([0x32535248, n, r.tris.length, meta.length, big ? 1 : 0]);
   const posQ = new Int16Array(n * 3);
   const nor = new Int8Array(n * 3);
   r.verts.forEach((p, i) => { for (let a = 0; a < 3; a++) posQ[i * 3 + a] = Math.round(p[a] * 10000); });
   r.normals.forEach((p, i) => { for (let a = 0; a < 3; a++) nor[i * 3 + a] = Math.round(p[a] * 127); });
   const ind = big ? new Uint32Array(r.tris) : new Uint16Array(r.tris);
-  const parts = [Buffer.from(header.buffer), meta, Buffer.from(posQ.buffer), Buffer.from(nor.buffer), Buffer.from(r.ao), Buffer.from(r.part), Buffer.from(r.skinIndex), Buffer.from(r.skinWeight), Buffer.from(ind.buffer)];
+  const parts = [Buffer.from(header.buffer), meta, Buffer.from(posQ.buffer), Buffer.from(nor.buffer), Buffer.from(r.ao), Buffer.from(r.cav), Buffer.from(r.part), Buffer.from(r.skinIndex), Buffer.from(r.skinWeight), Buffer.from(ind.buffer)];
   writeFileSync(file, Buffer.concat(parts));
 }
 

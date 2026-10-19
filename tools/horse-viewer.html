@@ -13,54 +13,75 @@
 // Dev tool: renders one horse from four angles to check the anatomy.
 // tools/horse-viewer.html?breed=quarter&coat=fuchs&level=  (serve from the repo root)
 import * as THREE from 'three';
-import { randomHorse } from './src/horse/breeds.js';
+import { Sky } from './src/world/sky.js';
+import { randomHorse, proportions } from './src/horse/breeds.js';
 import { loadHorseAssets, buildHorseModel } from './src/horse/horseModel.js';
+import { archetypeFor } from './src/horse/anatomy.js';
 
 const q = new URLSearchParams(location.search);
 const level = q.get('level') ?? '';
-await loadHorseAssets([level, '-lo']);
+const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'fuchs', markings: { socks: [0, 0, 0, 0], blaze: 0 } });
+if (q.get('growth')) data.growth = +q.get('growth');
+await loadHorseAssets([level, '-lo'], null, [archetypeFor(proportions(data)), 'foal']);
 const W = 1600, H = 1000;
 const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
 r.setSize(W, H);
 r.toneMapping = THREE.ACESFilmicToneMapping;
 r.outputColorSpace = THREE.SRGBColorSpace;
 r.shadowMap.enabled = true;
+r.shadowMap.type = THREE.PCFSoftShadowMap;
 r.setScissorTest(true);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc9d3dc);
-scene.add(new THREE.HemisphereLight(0xdfeaff, 0x5a4a38, 1.2));
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
-sun.position.set(4, 6, 3);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = sun.shadow.camera.bottom = -3;
-sun.shadow.camera.right = sun.shadow.camera.top = 3;
-scene.add(sun);
+scene.background = new THREE.Color(0xb9cbe0);
+// same lighting model as the game: procedural sky, sun and image-based light
+const sky = new Sky(scene);
+sky.setShadowRange(6);
+sky.sun.shadow.mapSize.set(2048, 2048);
+sky.update(+(q.get('hour') || 15.8), 1, { cloud: 0.1, storm: 0, dust: 0, fog: 0, rain: 0, snow: 0, wind: 0.3 }, new THREE.Vector3(), 0, 0);
+scene.environment = new THREE.PMREMGenerator(r).fromScene(sky.envScene, 0, 0.1, 500).texture;
+scene.environmentIntensity = 0.7;
 const ground = new THREE.Mesh(new THREE.CircleGeometry(8, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c9a6c }));
 ground.receiveShadow = true;
 scene.add(ground);
 
-const data = randomHorse(q.get('breed') || 'quarter', { coat: q.get('coat') || 'fuchs', markings: { socks: [0, 0, 0, 0], blaze: 0 } });
 data.maneStyle = q.get('mane') || 'offen';
 const rig = buildHorseModel(data);
 rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 rig.setLOD(0);
+rig.root.scale.setScalar(rig.dims.size * (rig.isFoal ? 0.62 + 0.38 * ((data.growth ?? 1) / 0.85) : 0.55 + 0.45 * (data.growth ?? 1)));
 scene.add(rig.root);
-for (const m of rig.mane) if (m.rest < 2) { m.g.rotation.x = m.rest; m.g.rotation.z = -0.7; }
 for (const t of rig.tail) t.g.rotation.x = t.rest;
-if (q.get('nohair')) { rig.maneGroup.visible = false; rig.tailFull.visible = false; if (rig.forelock) rig.forelock.visible = false; }
+if (q.get("nohair")) { rig.maneGroup.visible = false; rig.tailFull.visible = false; rig.forelock.visible = false; }
+
+if (q.get('flow')) {
+  // simulate the wind/stream of a gallop: ?flow=1&t=1.3
+  const h = { rig, speed: 11 * +q.get('flow'), heading: 0, time: +(q.get('t') || 1), game: { weather: null } };
+  rig.hair.update(h, 0.016);
+  for (const t of rig.tail) t.g.rotation.x = t.rest + 0.12 * +q.get('flow');
+  rig.tail[0].g.rotation.x = rig.tail[0].rest + 0.8 * +q.get('flow');
+}
 
 const views = [
   { x: 0, y: 0, w: 1000, h: 600, pos: [5.2, 1.15, 0.15], at: [0, 1.0, 0.15], fov: 30 },
   { x: 1000, y: 0, w: 600, h: 600, pos: [2.4, 1.5, 3.4], at: [0, 1.05, 0.2], fov: 35 },
-  { x: 0, y: 600, w: 600, h: 400, pos: [-2.6, 1.4, -3.4], at: [0, 1.0, -0.2], fov: 32 },
-  { x: 600, y: 600, w: 500, h: 400, pos: [1.3, 1.85, 2.0], at: [0, 1.62, 1.12], fov: 28 },
+  { x: 0, y: 600, w: 600, h: 400, pos: [-2.7, 1.75, 1.3], at: [0, 1.45, 0.55], fov: 30 },
+  { x: 600, y: 600, w: 500, h: 400, pos: [1.15, 1.8, 1.75], at: [0, 1.66, 1.15], fov: 22 },
   { x: 1100, y: 600, w: 500, h: 400, pos: [0.02, 1.4, 4.2], at: [0, 1.05, 0], fov: 30 },
 ];
+if (q.get('cam') === 'head') {
+  views.length = 0;
+  views.push(
+    { x: 0, y: 0, w: 800, h: 500, pos: [1.15, 1.85, 2.3], at: [0, 1.62, 1.18], fov: 20 },
+    { x: 800, y: 0, w: 800, h: 500, pos: [2.2, 1.7, 1.2], at: [0, 1.6, 1.2], fov: 18 },
+    { x: 0, y: 500, w: 800, h: 500, pos: [0, 1.75, 2.6], at: [0, 1.6, 1.2], fov: 20 },
+    { x: 800, y: 500, w: 800, h: 500, pos: [0.9, 2.5, 1.2], at: [0, 1.85, 1.3], fov: 22 },
+  );
+}
 const cam = new THREE.PerspectiveCamera();
 for (const v of views) {
   cam.fov = v.fov; cam.aspect = v.w / v.h; cam.near = 0.05; cam.far = 50; cam.updateProjectionMatrix();
   cam.position.set(...v.pos); cam.lookAt(...v.at);
+  sky.mesh.position.copy(cam.position);
   r.setViewport(v.x, H - v.y - v.h, v.w, v.h);
   r.setScissor(v.x, H - v.y - v.h, v.w, v.h);
   r.render(scene, cam);
