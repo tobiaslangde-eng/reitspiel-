@@ -93,8 +93,8 @@ export function animateHuman(hm, st, dt) {
     hy += twoPt * 0.09;
     for (let i = 0; i < 2; i++) {
       const s = i ? 1 : -1;
-      set(L[i].hip, lerp(west ? -0.95 : -1.1, -0.8, twoPt), s * 0.42, 0);
-      set(L[i].kn, lerp(west ? 0.95 : 1.35, 1.0, twoPt));
+      set(L[i].hip, lerp(west ? -0.72 : -0.85, -0.7, twoPt), s * 0.5, 0);
+      set(L[i].kn, lerp(west ? 0.62 : 1.0, 0.95, twoPt));
       set(L[i].ft, west ? -0.1 : -0.3);
       if (west && i === 1) { set(A[i].sh, 0.15, 0, 0.12); set(A[i].el, -0.35); }
       else { set(A[i].sh, -0.25 - lean * 0.6, 0, -s * 0.12); set(A[i].el, -1.25 + twoPt * 0.3); }

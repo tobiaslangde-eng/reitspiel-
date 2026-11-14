@@ -10,6 +10,7 @@ import { EventRun, DISCIPLINES, LEVELS } from './events.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
+import { loadRealHorse } from './realHorse.js';
 
 const SAVE_KEY = 'silbertal-ranch-v1', HOUR = 30;
 const canvas = document.getElementById('c'), app = document.getElementById('app');
@@ -285,6 +286,6 @@ function frame(now) {
 }
 
 if (saved) G.state = saved;
-G.toTitle();
+ui.show('load', '<div class="title"><div class="logo"><small>Pferde werden geladen …</small></div></div>', 'clear');
+loadRealHorse('assets/horse.glb').then((ok) => { G.realHorse = ok; G.toTitle(); window.gameReady = true; });
 requestAnimationFrame(frame);
-window.gameReady = true;

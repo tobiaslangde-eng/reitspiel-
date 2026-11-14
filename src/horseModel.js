@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { clamp, lerp, damp, rng, mix, TAU } from './util.js';
 import { coatOf, growth } from './data.js';
+import { REAL, buildReal, applyReal } from './realHorse.js';
 
 function catmull(p0, p1, p2, p3, t) {
   const t2 = t * t, t3 = t2 * t;
@@ -107,6 +108,7 @@ const SH = { sph: new THREE.SphereGeometry(1, 12, 9), eye: new THREE.SphereGeome
 const LEATHER = { western: '#7a4a25', english: '#2a1c14' };
 
 export function buildHorse(h, opt = {}) {
+  if (REAL.ready && !opt.procedural) return buildReal(h, opt);
   const coat = coatOf(h.genes, h.age), cf = h.conf, g = growth(h.age);
   const foal = 1 - g;
   const L = cf.leg * lerp(1.22, 1, g), BL = lerp(0.76, 1, g), W = cf.bulk * lerp(0.72, 1, g), D = (1 + (cf.bulk - 1) * 0.45) * lerp(0.76, 1, g);
@@ -351,10 +353,11 @@ export function animateHorse(model, st, dt) {
     a.steps = [1, 1, 1, 1];
   }
   const kq = 1 - Math.exp(-dt * 20);
-  for (let i = 0; i < 4; i++) { const l = model.legs[i]; for (let k = 0; k < l.j.length; k++) { l.cur[k] += (tgt[i][k] - l.cur[k]) * kq; l.j[k].rotation.x = l.cur[k]; } }
+  for (let i = 0; i < 4; i++) { const l = model.legs[i]; for (let k = 0; k < l.cur.length; k++) { l.cur[k] += (tgt[i][k] - l.cur[k]) * kq; if (l.j) l.j[k].rotation.x = l.cur[k]; } }
   a.bob = damp(a.bob, bob, 18, dt); a.pitch = damp(a.pitch, pitch + (st.slope || 0), 10, dt);
   a.roll = damp(a.roll, st.roll || 0, 6, dt);
   a.neckA = damp(a.neckA, neckT, 5, dt); a.headA = damp(a.headA, headT, 5, dt); a.tail = damp(a.tail, tailT, 4, dt);
+  if (model.real) { applyReal(model, st, dt); return hits; }
   model.body.position.y = model.pivotY + a.bob; model.body.rotation.x = a.pitch; model.body.rotation.z = a.roll;
   model.neck.rotation.x = -a.neckA; model.neck.rotation.y = damp(model.neck.rotation.y, clamp((st.yawRate || 0) * 0.25, -0.35, 0.35), 4, dt);
   model.head.rotation.x = a.headA;

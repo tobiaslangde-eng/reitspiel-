@@ -3,7 +3,12 @@
 Ein 3D-Reitspiel im Browser (Three.js): offene Welt mit Ranch, Kleinstadt, Turnierplatz, Rennbahn, See und Geländestrecke –
 Third-Person-Kamera, Radar-Minimap, Tag-/Nacht-Wechsel.
 
-**Spielen:** `index.html` im Browser öffnen (alles ist in dieser einen Datei enthalten, keine Installation nötig).
+**Spielen:** Den Ordner über einen Webserver öffnen (z. B. GitHub Pages oder `npx serve`), dann lädt das Spiel das
+realistische Pferdemodell aus `assets/horse.glb`. Wird `index.html` direkt per Doppelklick geöffnet, kann der Browser das
+Modell nicht laden; das Spiel läuft dann mit den einfacheren, im Code erzeugten Pferden.
+
+**Pferdemodell:** „HORSE – Realistic 3D Model (Demo Free)“ von WildMesh 3D, CC BY-NC 4.0 – Namensnennung nötig,
+keine kommerzielle Nutzung. Details in `assets/CREDITS.md`.
 
 ## Inhalt
 

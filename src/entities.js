@@ -110,7 +110,7 @@ export class Horse {
     this.aGait = sp < 0.12 ? 0 : sp < gs[1] * 1.4 ? 1 : sp < (gs[2] + gs[3]) * 0.5 ? 2 : sp < (gs[3] + gs[4]) * 0.5 ? 3 : 4;
     this.place();
     const roll = clamp(-this.speed * w / 9.81 * 0.55, -0.32, 0.32);
-    const hits = animateHorse(this.model, { speed: this.speed, gait: this.aGait, air: { on: !this.onGround, k: clamp(this.vy / this.jumpV0, -1, 1) }, slide: this.slide, graze: this.ai.graze, yawRate: w, roll, slope: -Math.atan(slope) * 0.85, collected: this.tack === 'english' && !!this.rider && st.obedience > 55, spin: spin && Math.abs(w) > 0.25 }, dt);
+    const hits = animateHorse(this.model, { speed: this.speed, gait: this.aGait, air: { on: !this.onGround, k: clamp(this.vy / this.jumpV0, -1, 1) }, slide: this.slide, graze: this.ai.graze, yawRate: w, roll, slope: -Math.atan(slope) * 0.85, collected: this.tack === 'english' && !!this.rider && st.obedience > 55, spin: spin && Math.abs(w) > 0.25, far: !this.near }, dt);
     if (this.near) {
       if (hits.length && this.onGround) { const vol = clamp(0.1 + sp * 0.03, 0.1, 0.5) * this.near; for (let i = 0; i < hits.length; i++) depth > 0.1 ? G.audio.splash() : G.audio.hoof(vol, W.roadDist(this.pos.x, this.pos.z) < 3.6); if (G.fx && (sp > 9 || this.slide)) G.fx.dust(this.pos.x - fx * 0.6, this.y, this.pos.z - fz * 0.6, 1); }
       if (this.slide && G.fx) G.fx.dust(this.pos.x - fx, this.y, this.pos.z - fz, 2);

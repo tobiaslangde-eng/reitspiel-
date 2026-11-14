@@ -175,6 +175,7 @@ export class UI {
     <canvas id="bigmap" width="560" height="560"></canvas>
     <h3>Schnellreise</h3><div class="row wrap">${Object.keys(LOC).filter((k) => k !== 'lake').map((k) => `<button data-a="travel" data-v="${k}">${LOC[k].name}</button>`).join('')}</div>
     <h3>Mehr</h3><div class="row wrap"><button data-a="editChar">Charakter</button><button data-a="help2">Steuerung</button><button data-a="mute">Ton ${G.audio.on ? 'an' : 'aus'}</button><button data-a="qual">Grafik: ${['Niedrig', 'Hoch'][S.quality]}</button><button data-a="save">Speichern</button><button data-a="toTitle">Hauptmenü</button></div>
+    <p class="hint">Pferdemodell: „HORSE – Realistic 3D Model (Demo Free)“ von WildMesh 3D, CC BY-NC 4.0 (keine kommerzielle Nutzung).</p>
     <div class="row end"><button class="pri" data-a="close">Schließen</button></div></div>`);
     this.drawMap($('#bigmap').getContext('2d'), 560, 0, 0, 560 / 1500, 0, true);
   }
