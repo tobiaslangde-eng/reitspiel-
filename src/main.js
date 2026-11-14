@@ -282,7 +282,7 @@ function frame(now) {
   renderer.render(scene, camera);
   if (G.mode === 'play' && G.player) ui.hud(dt);
   // dauerhaft niedrige Bildrate -> Auflösung, dann Schatten reduzieren
-  if (G.mode === 'play' && raw < 0.5) { slowT = raw > 0.045 ? slowT + raw : Math.max(0, slowT - raw * 2); fpsT += raw; if (slowT > 4 && fpsT > 6) { slowT = 0; fpsT = 0; if (!G.lowRes) { G.lowRes = true; G.applyQuality(); } else if (renderer.shadowMap.enabled) { renderer.shadowMap.enabled = false; world.sun.castShadow = false; ui.toast('Grafik wurde für flüssigeres Spielen reduziert.'); } } }
+  if (G.mode === 'play' && raw < 0.5) { slowT = raw > 0.045 ? slowT + raw : Math.max(0, slowT - raw * 2); fpsT += raw; if (slowT > 4 && fpsT > 6) { slowT = 0; fpsT = 0; if (!G.lowRes) { G.lowRes = true; G.applyQuality(); } else if (!G.lowVeg) { G.lowVeg = true; world.lodDist = Math.min(world.lodDist, 130); world.grass.setCount(25000); ui.toast('Grafik wurde für flüssigeres Spielen reduziert.'); } else if (renderer.shadowMap.enabled) { renderer.shadowMap.enabled = false; world.sun.castShadow = false; } } }
 }
 
 if (saved) G.state = saved;

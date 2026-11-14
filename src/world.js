@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, lerp, sstep, fbm, noise2, rng, segDist, TAU, mix } from './util.js';
+import { treeVariants, leafMaterial, GrassField, grassTexture, waterNormal, wind } from './nature.js';
 
 export const SIZE = 1800, N = 301, CS = SIZE / (N - 1), HALF = SIZE / 2;
 export const LOC = {
@@ -60,7 +61,7 @@ function noiseFill(x, w, h, base, amt, n, r = Math.random) {
 export class World {
   constructor(scene, renderer, quality = 1) {
     this.scene = scene; this.renderer = renderer; this.quality = quality;
-    this.grid = new Map(); this.dyn = []; this.mapRects = []; this.spin = [];
+    this.grid = new Map(); this.dyn = []; this.mapRects = []; this.spin = []; this.lod = [];
     this.fenceM = { white: [], wood: [] };
     this.r = rng(4711);
     this.buildHeights();
@@ -76,6 +77,7 @@ export class World {
     this.buildVegetation();
     this.flushFences();
     this.buildMarkers();
+    this.buildGrass();
   }
 
   // ---------- Höhenfeld ----------
@@ -143,11 +145,13 @@ export class World {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const r = rng(5);
-    const t = canvasTex(256, 256, (x, w, h) => {
-      noiseFill(x, w, h, '#d6d6d6', 0.14, 9000, r);
-      for (let i = 0; i < 1800; i++) { x.strokeStyle = `rgba(${r() < 0.5 ? '40,60,20' : '230,240,200'},${0.06 + r() * 0.1})`; const px = r() * w, py = r() * h; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - 0.5) * 3, py - 2 - r() * 5); x.stroke(); }
-    });
+    const t = grassTexture(); void r;
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: t, roughness: 0.95, metalness: 0 });
+    // Fototextur in zwei Maßstäben, damit die Kachelung nicht auffällt; Farbe kommt aus den Vertexfarben
+    m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+      vec3 tA = texture2D(map, vMapUv).rgb, tB = texture2D(map, vMapUv * 0.137 + 0.31).rgb, tC = texture2D(map, vMapUv * 4.1).rgb;
+      float lum = dot(tA, vec3(0.333)) * 0.45 + dot(tB, vec3(0.333)) * 0.35 + dot(tC, vec3(0.333)) * 0.2;
+      diffuseColor.rgb *= mix(vec3(lum * 3.0), (tA + tB) * 1.4, 0.35);`); };
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; this.scene.add(mesh); this.terrain = mesh;
   }
 
@@ -207,6 +211,10 @@ export class World {
       const old = this.envRT; this.envRT = this.pmrem.fromScene(this.envScene, 0, 1, 2000); this.scene.environment = this.envRT.texture; this.scene.environmentIntensity = lerp(0.6, 0.55, day); if (old) old.dispose();
     }
     for (const s of this.spin) s.rotation.z += dt * 1.4;
+    wind.value += dt;
+    if (this.waterMat) { const o = this.waterMat.normalMap.offset; o.x += dt * 0.012; o.y += dt * 0.007; }
+    if (this.grass) { this.grassLight.copy(this.hemi.color).multiplyScalar(this.hemi.intensity * 0.55).add(this.sun.color.clone().multiplyScalar(this.sun.intensity * 0.3)); this.grass.update(focus, this.grassLight); }
+    for (const L of this.lod) { const near = Math.hypot(L.x - focus.x, L.z - focus.z) < this.lodDist; if (near !== L.on) { L.on = near; for (const m of L.near) m.visible = near; for (const m of L.far) m.visible = !near; } }
   }
 
   // ---------- Straßen ----------
@@ -236,7 +244,7 @@ export class World {
   buildWater() {
     this.waterY = -1.3;
     const g = new THREE.CircleGeometry(150, 40); g.rotateX(-Math.PI / 2);
-    const m = new THREE.MeshStandardMaterial({ color: '#27505c', roughness: 0.06, metalness: 0.7, transparent: true, opacity: 0.88 });
+    const m = this.waterMat = new THREE.MeshStandardMaterial({ color: '#1f4854', roughness: 0.08, metalness: 0.85, transparent: true, opacity: 0.9, normalMap: waterNormal(), normalScale: new THREE.Vector2(0.35, 0.35) });
     const w = new THREE.Mesh(g, m); w.position.set(LOC.lake.x, this.waterY, LOC.lake.z); this.scene.add(w);
   }
 
@@ -490,13 +498,14 @@ export class World {
 
   // Instanzen in Kacheln gruppieren, damit Sichtbarkeits-Culling greift
   chunks(geo, mat, items, o = {}) {
-    const cells = new Map(), d = new THREE.Object3D(), c = new THREE.Color(), cs = o.cell || 300;
+    const cells = new Map(), d = new THREE.Object3D(), c = new THREE.Color(), cs = o.cell || 300, made = [];
     for (const it of items) { const k = Math.floor(it.x / cs) * 64 + Math.floor(it.z / cs); let a = cells.get(k); if (!a) cells.set(k, (a = [])); a.push(it); }
-    for (const a of cells.values()) {
+    for (const [k, a] of cells) {
       const im = new THREE.InstancedMesh(geo, mat, a.length);
       a.forEach((it, i) => { d.position.set(it.x, it.y, it.z); d.rotation.set(it.rx || 0, it.ry || 0, it.rz || 0); d.scale.set(it.sx, it.sy, it.sz); d.updateMatrix(); im.setMatrixAt(i, d.matrix); if (it.c) im.setColorAt(i, c.set(it.c).multiplyScalar(it.k || 1)); });
-      im.castShadow = !!o.cast; im.receiveShadow = !!o.receive; im.computeBoundingSphere(); this.scene.add(im);
+      im.castShadow = !!o.cast; im.receiveShadow = !!o.receive; im.computeBoundingSphere(); this.scene.add(im); made.push({ im, k });
     }
+    return made;
   }
 
   // ---------- Vegetation ----------
@@ -529,10 +538,23 @@ export class World {
       const ty = h > 36 || r() < 0.22 ? 2 : r() < 0.2 ? 1 : 0, s = 0.8 + r() * 0.9, t = types[ty];
       inst[ty].push({ x, y: h - 0.15, z, sx: s, sy: s * (0.9 + r() * 0.3), sz: s, ry: r() * TAU, c: t.cc[n % t.cc.length], k: 0.85 + r() * 0.3 }); this.addCircle(x, z, 0.4 * s); n++;
     }
+    // nahe Kacheln: detaillierte Bäume, ferne: einfache Platzhalter
+    const vars = treeVariants(), lods = new Map(), cs = 200;
+    this.lodDist = hi ? 300 : 170;
+    const reg = (list, far) => { for (const { im, k } of list) { let L = lods.get(k); if (!L) { const cx = Math.floor(k / 64 + 0.5), cz = k - cx * 64; lods.set(k, (L = { x: (cx + 0.5) * cs, z: (cz + 0.5) * cs, near: [], far: [], on: true })); } (far ? L.far : L.near).push(im); if (far) im.visible = false; } };
     types.forEach((t, ti) => {
-      this.chunks(t.tg, new THREE.MeshStandardMaterial({ color: t.tc, roughness: 1 }), inst[ti], { cast: hi });
-      this.chunks(t.cg, new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: ti === 2 }), inst[ti], { cast: true, receive: true });
+      const mine = vars.filter((v) => v.kind === ti);
+      if (!mine.length) { this.chunks(t.tg, new THREE.MeshStandardMaterial({ color: t.tc, roughness: 1 }), inst[ti], { cast: hi }); this.chunks(t.cg, new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: ti === 2 }), inst[ti], { cast: true, receive: true }); return; }
+      reg(this.chunks(t.tg, new THREE.MeshStandardMaterial({ color: t.tc, roughness: 1 }), inst[ti], { cell: cs }), true);
+      reg(this.chunks(t.cg, new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: ti === 2 }), inst[ti], { cell: cs, cast: true }), true);
+      mine.forEach((v, vi) => {
+        const items = inst[ti].filter((_, i) => i % mine.length === vi).map((it) => ({ ...it, sx: it.sx * 0.85, sy: it.sy * 0.85, sz: it.sz * 0.85, c: '#ffffff', k: 0.8 + (it.k - 0.85) * 1.2 }));
+        reg(this.chunks(v.branch, new THREE.MeshStandardMaterial({ map: v.bark, roughness: 1 }), items, { cell: cs, cast: true, receive: true }), false);
+        const lm = leafMaterial(v.leafTex); lm.color.copy(v.tint);
+        reg(this.chunks(v.leaf, lm, items, { cell: cs, cast: true }), false);
+      });
     });
+    this.lod = [...lods.values()];
     const spot = (ok) => { let x, z, k = 0; do { x = (r() - 0.5) * 1700; z = (r() - 0.5) * 1700; } while (!ok(x, z) && k++ < 30); return [x, z]; };
     // Büsche & Felsen
     const bushes = [];
@@ -542,13 +564,27 @@ export class World {
     const rocks = [];
     for (let i = 0; i < 220; i++) { const [x, z] = spot(clear); const s = 0.5 + r() * r() * 2.6; rocks.push({ x, y: this.heightAt(x, z) + s * 0.1, z, sx: s, sy: s * 0.65, sz: s * 0.9, rx: r(), ry: r() * 6, rz: r() }); if (s > 0.9) this.addCircle(x, z, s * 0.8, s * 0.7); }
     this.chunks(rg, new THREE.MeshStandardMaterial({ color: '#85807a', roughness: 0.95, flatShading: true }), rocks, { cast: true, receive: true });
-    // Grasbüschel rund um Ranch und Turnierplatz
-    if (hi) {
-      const gg = new THREE.ConeGeometry(0.09, 0.55, 3); gg.translate(0, 0.27, 0);
-      const tufts = [];
-      for (let i = 0; i < 7000; i++) { const a = r() * TAU, cen = i % 3 === 0 ? LOC.arena : LOC.ranch, rad = 30 + Math.sqrt(r()) * 250; const x = cen.x + Math.cos(a) * rad, z = cen.z + Math.sin(a) * rad; if (this.roadDist(x, z) < 5 || (Math.abs(x - ARENA.x) < 50 && Math.abs(z - ARENA.z) < 34) || Math.hypot(x + 8, z - 2) < 44) continue; const s = 0.6 + r() * 1.3; tufts.push({ x, y: this.heightAt(x, z), z, sx: s * 1.6, sy: s, sz: s * 1.6, rx: (r() - 0.5) * 0.5, ry: r() * 6, rz: (r() - 0.5) * 0.5, c: ['#5c8038', '#7c9044', '#94984e', '#4d7030'][i % 4] }); }
-      this.chunks(gg, new THREE.MeshStandardMaterial({ roughness: 1 }), tufts, { cell: 150, receive: true });
+  }
+
+  // Höhen- und Maskentextur für die Grashalme
+  buildGrass() {
+    this.grassLight = new THREE.Color();
+    const data = new Uint16Array(N * N * 2), H = THREE.DataUtils.toHalfFloat;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const o = j * N + i, x = -HALF + i * CS, z = -HALF + j * CS, h = this.H[o];
+      const hx = this.H[j * N + Math.min(N - 1, i + 1)] - this.H[j * N + Math.max(0, i - 1)], hz = this.H[Math.min(N - 1, j + 1) * N + i] - this.H[Math.max(0, j - 1) * N + i];
+      let m = 1;
+      if (this.RD[o] < 9.5 || h < 0.5 || h > 60 || Math.hypot(hx, hz) / (2 * CS) > 0.45) m = 0;
+      if (Math.hypot(x + 8, z - 2) < 50) m = 0;
+      if (Math.abs(x - ARENA.x) < ARENA.hw + 5 && Math.abs(z - ARENA.z) < ARENA.hd + 16) m = 0;
+      if (Math.abs(this.trackProgress(x, z)[1]) < TRACK.w / 2 + 5 || (Math.abs(x) < 8 && z < -350 && z > -420)) m = 0;
+      if (x > MARKET.x0 - 6 && x < MARKET.x1 + 5 && z > MARKET.z0 - 5 && z < MARKET.z1 + 5) m = 0;
+      if (Math.hypot(x - 42, z + 14) < 15 || (x > 325 && x < 480 && Math.abs(z + 40) < 30)) m = 0;
+      data[o * 2] = H(h); data[o * 2 + 1] = H(m);
     }
+    const t = new THREE.DataTexture(data, N, N, THREE.RGFormat, THREE.HalfFloatType); t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
+    const hi = this.quality > 0;
+    this.grass = new GrassField(this.scene, t, [HALF, CS, N], hi ? 110000 : 30000, hi ? 80 : 46);
   }
 
   buildMarkers() {

@@ -4,6 +4,12 @@
   "private": true,
   "description": "Silbertal Ranch – Open-World-Reitspiel (Three.js)",
   "type": "module",
-  "scripts": { "build": "node build.mjs" },
-  "devDependencies": { "esbuild": "^0.25.0", "three": "0.170.0" }
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@dgreenheck/ez-tree": "^1.1.0",
+    "esbuild": "^0.25.0",
+    "three": "0.170.0"
+  }
 }
