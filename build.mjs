@@ -4,7 +4,9 @@ import fs from 'fs';
 
 const res = await build({ entryPoints: ['src/main.js'], bundle: true, format: 'iife', minify: true, write: false, target: 'es2020', legalComments: 'none' });
 const js = res.outputFiles[0].text.replace(/<\/script/g, '<\\/script');
-const frag = fs.readFileSync('src/index.template.html', 'utf8').replace('/*__JS__*/', () => js);
+// Pferdemodell direkt einbetten, damit eine einzige Datei genügt (auch per Doppelklick und als Artifact)
+const glb = fs.existsSync('assets/horse.glb') ? `<script>window.HORSE_GLB="${fs.readFileSync('assets/horse.glb').toString('base64')}";</script>\n` : '';
+const frag = fs.readFileSync('src/index.template.html', 'utf8').replace('<script>/*__JS__*/</script>', () => `${glb}<script>${js}</script>`);
 const page = `<!DOCTYPE html>
 <html lang="de">
 <head>

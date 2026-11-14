@@ -22,9 +22,10 @@ export function loadRealHorse(url) {
     let done = false; const fin = (v) => { if (!done) { done = true; resolve(v); } };
     setTimeout(() => fin(false), 25000);
     try {
-      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url, (g) => {
-        try { prepare(g); REAL.ready = true; fin(true); } catch (e) { console.warn('Pferdemodell unbrauchbar', e); fin(false); }
-      }, undefined, () => fin(false));
+      const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+      const ok = (g) => { try { prepare(g); REAL.ready = true; fin(true); } catch (e) { console.warn('Pferdemodell unbrauchbar', e); fin(false); } };
+      if (window.HORSE_GLB) { const bin = atob(window.HORSE_GLB), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); window.HORSE_GLB = null; loader.parse(buf.buffer, '', ok, () => fin(false)); }
+      else loader.load(url, ok, undefined, () => fin(false));
     } catch (_) { fin(false); }
   });
 }
